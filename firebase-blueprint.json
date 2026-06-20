@@ -1,0 +1,38 @@
+{
+  "collections": {
+    "users": {
+      "description": "Stores user profile and aggregate game statistics",
+      "fields": {
+        "displayName": "string",
+        "email": "string",
+        "photoURL": "string",
+        "totalTreasuresFound": "number",
+        "totalIslandsExplored": "number",
+        "bestDayCount": "number",
+        "createdAt": "timestamp"
+      }
+    },
+    "games": {
+      "description": "Stores current active game sessions for persistence",
+      "fields": {
+        "userId": "string",
+        "seed": "string",
+        "day": "number",
+        "resources": {
+          "gold": "number",
+          "wood": "number",
+          "stone": "number",
+          "gems": "number"
+        },
+        "playerPos": {
+          "x": "number",
+          "y": "number"
+        },
+        "exploredTiles": "string[]",
+        "foundRelics": "string[]",
+        "isGameOver": "boolean",
+        "lastUpdated": "timestamp"
+      }
+    }
+  }
+}

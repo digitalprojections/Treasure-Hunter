@@ -1,0 +1,6 @@
+{
+  "name": "Treasure Cartographer",
+  "description": "An exploration-focused treasure hunter game where players reveal a hidden map, find ancient relics, and avoid dangerous traps on procedurally generated islands.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
