@@ -37,3 +37,28 @@ The island is covered in fog. You must move your explorer to reveal adjacent til
 - **AI Integration**: Gemini 1.5 Flash for procedural clue generation.
 - **Authentication**: Firebase Google Sign-In for progress tracking.
 - **Persistence**: Firestore blueprint ready for multi-device sync.
+
+## Shared Games API Integration
+
+In production, Treasure Hunter can be deployed as a static game and use the
+shared Battleship server for game backend calls. Set:
+
+```dotenv
+VITE_GAMES_API_URL=https://battleship.created.link
+```
+
+The shared backend hosts `/api/games/treasure-hunter/*`, verifies Firebase ID
+tokens, issues game sessions, handles Gemini clues, applies reward caps, and
+then signs Points Ledger requests server-side.
+
+Signed-in players can earn capped rewards from server-authenticated events:
+
+- Active playtime: defaults to **1 point per visible minute**, capped at **40/day**.
+- Treasure found: defaults to **5 points**, capped at **20 events/day**.
+- Relic collected: defaults to **20 points**, capped at **3 events/day**.
+- Island escape: defaults to **50 points**, capped at **3 events/day**.
+- Total earned game points are capped at **100/day** by default.
+
+Set `POINTS_API_URL`, `POINTS_APP_ID`, `POINTS_APP_SECRET`,
+`FIREBASE_PROJECT_ID`, and the cap variables on the shared Battleship server,
+not in this static game bundle.

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Trophy, 
@@ -33,13 +33,43 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const GAMES_API_BASE_URL = (import.meta.env.VITE_GAMES_API_URL || '').replace(/\/$/, '');
+
+function gameApiUrl(path: string) {
+  return `${GAMES_API_BASE_URL}${path}`;
+}
+
+type PointsAwardResponse = {
+  awarded: number;
+  reason?: string;
+  transaction_id?: string;
+  balance_after?: number;
+  totals?: {
+    earned_today: number;
+    playtime_earned_today: number;
+    achievement_earned_today: number;
+    daily_cap: number;
+    playtime_daily_cap: number;
+    achievement_daily_cap: number;
+  };
+};
+
+type GameSessionResponse = {
+  session_id: string;
+  totals?: PointsAwardResponse['totals'];
+};
+
+function createSessionId() {
+  return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 // Sub-components
 const ResourceItem = ({ icon: Icon, value, label, color }: { icon: any, value: number, label: string, color: string }) => (
-  <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700 px-3 py-1.5 rounded-md shadow-inner">
+  <div className="flex shrink-0 items-center gap-2 bg-slate-900/80 border border-slate-700 px-2.5 py-1.5 rounded-md shadow-inner">
     <div className={cn("p-1 rounded-full bg-opacity-20", color)}>
       <Icon size={16} className={color.replace('bg-', 'text-')} />
     </div>
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-0">
       <span className="text-[10px] text-slate-500 font-bold uppercase leading-none tracking-wider">{label}</span>
       <span className="text-sm font-mono font-bold text-white">{value}</span>
     </div>
@@ -47,8 +77,8 @@ const ResourceItem = ({ icon: Icon, value, label, color }: { icon: any, value: n
 );
 
 const SidebarSection = ({ title, children, icon: Icon }: { title: string, children: React.ReactNode, icon?: any }) => (
-  <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 shadow-xl relative overflow-hidden">
-    <div className="flex items-center gap-2 mb-4 border-b border-slate-800 pb-2">
+  <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 lg:p-4 shadow-xl relative overflow-hidden">
+    <div className="flex items-center gap-2 mb-3 lg:mb-4 border-b border-slate-800 pb-2">
       {Icon && <Icon size={14} className="text-slate-500" />}
       <h3 className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">{title}</h3>
     </div>
@@ -82,9 +112,14 @@ export default function App() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [logs, setLogs] = useState<{ message: string, type: 'info' | 'success' | 'warning' | 'error', timestamp: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pointsEarnedToday, setPointsEarnedToday] = useState(0);
+  const gameSessionIdRef = useRef(createSessionId());
+  const sharedApiSessionIdRef = useRef<string | null>(null);
+  const [sharedApiSessionId, setSharedApiSessionId] = useState<string | null>(null);
 
   // Initialize Game
   const startNewGame = useCallback(() => {
+    gameSessionIdRef.current = createSessionId();
     const tiles = generateIsland();
     const startPos = getStartingPosition(tiles);
     
@@ -112,6 +147,9 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      setPointsEarnedToday(0);
+      sharedApiSessionIdRef.current = null;
+      setSharedApiSessionId(null);
       setLoading(false);
       startNewGame();
     });
@@ -122,6 +160,129 @@ export default function App() {
     const timestamp = new Date().toLocaleTimeString([], { hour12: false });
     setLogs(prev => [{ message, type, timestamp }, ...prev.slice(0, 19)]);
   };
+
+  const applyPointsResult = (result: PointsAwardResponse, label: string, quiet = false) => {
+    if (typeof result.totals?.earned_today === 'number') {
+      setPointsEarnedToday(result.totals.earned_today);
+    }
+
+    if (quiet) return;
+
+    if (result.awarded > 0) {
+      const suffix = result.reason === 'points_ledger_not_configured' ? ' (ledger not configured yet)' : '';
+      addLog(`Earned ${result.awarded} point${result.awarded === 1 ? '' : 's'} for ${label}.${suffix}`, 'success');
+    } else if (result.reason === 'daily_cap_reached' || result.reason === 'achievement_event_cap_reached') {
+      addLog(`Point cap reached for ${label}.`, 'warning');
+    }
+  };
+
+  const postGameEvent = async <T,>(path: string, body: Record<string, unknown>) => {
+    if (!user) return null;
+
+    const token = await user.getIdToken();
+    const response = await fetch(gameApiUrl(path), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Points request failed with ${response.status}`);
+    }
+
+    return response.json() as Promise<T>;
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
+    const startSharedGameSession = async () => {
+      try {
+        const result = await postGameEvent<GameSessionResponse>('/api/games/treasure-hunter/session', {});
+        if (!cancelled && result?.session_id) {
+          sharedApiSessionIdRef.current = result.session_id;
+          setSharedApiSessionId(result.session_id);
+          if (typeof result.totals?.earned_today === 'number') {
+            setPointsEarnedToday(result.totals.earned_today);
+          }
+        }
+      } catch (error) {
+        console.error('Shared game session failed:', error);
+        if (!cancelled) {
+          addLog('Shared game services are unavailable.', 'warning');
+        }
+      }
+    };
+
+    startSharedGameSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const postPointsEvent = async (path: string, body: Record<string, unknown>) => {
+    const sessionId = sharedApiSessionIdRef.current;
+    if (!sessionId) return null;
+
+    return postGameEvent<PointsAwardResponse>(path, {
+      ...body,
+      sessionId,
+    });
+  };
+
+  const awardAchievement = async (type: 'treasure_found' | 'relic_collected' | 'island_escape', eventId: string, label: string) => {
+    if (!user || !sharedApiSessionIdRef.current) return;
+
+    try {
+      const result = await postPointsEvent('/api/games/treasure-hunter/achievement', { type, eventId });
+      if (result) applyPointsResult(result, label);
+    } catch (error) {
+      console.error('Achievement points failed:', error);
+      addLog('Point award service is unavailable.', 'warning');
+    }
+  };
+
+  useEffect(() => {
+    if (!user || !sharedApiSessionId) return;
+
+    let stopped = false;
+
+    const claimPlaytime = async (quiet = false) => {
+      if (document.visibilityState === 'hidden') return;
+
+      try {
+        const result = await postPointsEvent('/api/games/treasure-hunter/playtime', {});
+
+        if (!stopped && result) {
+          applyPointsResult(result, 'active exploration', quiet || result.awarded === 0);
+        }
+      } catch (error) {
+        console.error('Playtime points failed:', error);
+        if (!quiet && !stopped) {
+          addLog('Playtime points could not be recorded.', 'warning');
+        }
+      }
+    };
+
+    claimPlaytime(true);
+    const intervalId = window.setInterval(() => claimPlaytime(false), 60000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') claimPlaytime(true);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [user, sharedApiSessionId]);
 
   // Movement Logic
   const handleMove = (x: number, y: number) => {
@@ -169,6 +330,7 @@ export default function App() {
             message = "Found a buried treasure chest!";
             logType = 'success';
             confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+            awardAchievement('treasure_found', `${gameSessionIdRef.current}:treasure:${newStats.treasuresFound}`, 'finding treasure');
           } else if (t.entity === EntityType.TRAP) {
             newResources.gold = Math.max(0, newResources.gold - 40);
             newStats.trapsTriggered += 1;
@@ -179,6 +341,7 @@ export default function App() {
             message = "Uncovered an Ancient Relic!";
             logType = 'success';
             confetti({ particleCount: 100, spread: 100, origin: { y: 0.5 } });
+            awardAchievement('relic_collected', `${gameSessionIdRef.current}:relic:${newStats.relicsCollected}`, 'collecting a relic');
             
             // If all relics found, reveal the exit
             if (newStats.relicsCollected >= 3) {
@@ -190,6 +353,7 @@ export default function App() {
               message = "Escape successful! You've set sail for a new island.";
               logType = 'success';
               confetti({ particleCount: 200, spread: 160, origin: { y: 0.5 } });
+              awardAchievement('island_escape', `${gameSessionIdRef.current}:escape:${newStats.daysElapsed}`, 'escaping the island');
               // Trigger new game in next frame
               setTimeout(startNewGame, 3000);
             } else {
@@ -285,7 +449,7 @@ export default function App() {
 
     addLog("Consulting the ancient archives...", "info");
     try {
-      const response = await fetch('/api/clue', {
+      const response = await fetch(gameApiUrl('/api/games/treasure-hunter/clue'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gameState }),
@@ -322,37 +486,38 @@ export default function App() {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-screen bg-[#0F172A] text-slate-400 font-mono text-xs tracking-widest uppercase animate-pulse">Initializing Expedition Data...</div>;
+  if (loading) return <div className="flex items-center justify-center h-[100dvh] bg-[#0F172A] text-slate-400 font-mono text-xs tracking-widest uppercase animate-pulse">Initializing Expedition Data...</div>;
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100 font-sans selection:bg-amber-500/30 overflow-hidden flex flex-col border-8 border-slate-900">
+    <div className="h-[100dvh] max-h-[100dvh] bg-[#0F172A] text-slate-100 font-sans selection:bg-amber-500/30 overflow-hidden flex flex-col border-4 lg:border-8 border-slate-900">
       {/* Header */}
-      <header className="h-16 bg-slate-800/50 border-b border-slate-700 flex items-center px-8 justify-between shadow-2xl z-20 backdrop-blur-sm">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-amber-500 rounded flex items-center justify-center text-slate-900 font-bold shadow-lg shadow-amber-500/20">
+      <header className="shrink-0 bg-slate-800/50 border-b border-slate-700 flex flex-wrap lg:flex-nowrap items-center gap-2 px-2 sm:px-4 lg:px-6 py-2 justify-between shadow-2xl z-20 backdrop-blur-sm">
+        <div className="min-w-0 flex flex-1 flex-wrap lg:flex-nowrap items-center gap-2 sm:gap-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-amber-500 rounded flex shrink-0 items-center justify-center text-slate-900 font-bold shadow-lg shadow-amber-500/20">
               <MapIcon size={20} />
             </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tighter uppercase text-white leading-none">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl font-black tracking-tighter uppercase text-white leading-none truncate">
                 Isle Finder <span className="text-amber-500 text-sm">v2.4</span>
               </h1>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold mt-1">Procedural Expeditions</p>
+              <p className="hidden sm:block text-[10px] text-slate-400 uppercase tracking-widest font-semibold mt-1">Procedural Expeditions</p>
             </div>
           </div>
 
-          <div className="h-8 w-[1px] bg-slate-700 mx-2" />
+          <div className="hidden lg:block h-8 w-[1px] bg-slate-700 mx-1" />
 
-          <div className="flex gap-3">
+          <div className="flex min-w-0 flex-1 gap-2 sm:gap-3 overflow-x-auto pb-1 lg:pb-0">
             <ResourceItem icon={Coins} value={Math.max(0, gameState?.resources.gold || 0)} label="Gold" color="bg-amber-500" />
             <ResourceItem icon={Trees} value={gameState?.resources.wood || 0} label="Wood" color="bg-emerald-500" />
             <ResourceItem icon={MountainIcon} value={gameState?.resources.stone || 0} label="Stone" color="bg-slate-400" />
             <ResourceItem icon={Sparkles} value={gameState?.resources.gems || 0} label="Gems" color="bg-purple-500" />
+            {user && <ResourceItem icon={Trophy} value={pointsEarnedToday} label="Pts Today" color="bg-cyan-500" />}
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex gap-4 items-center bg-slate-900/80 px-4 py-1.5 rounded-full border border-slate-700 shadow-inner">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+          <div className="flex gap-3 sm:gap-4 items-center bg-slate-900/80 px-3 sm:px-4 py-1.5 rounded-full border border-slate-700 shadow-inner">
             <div className="flex flex-col items-center">
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Day</span>
               <span className="text-xs font-mono font-bold text-amber-500">{gameState?.stats.daysElapsed}</span>
@@ -367,12 +532,12 @@ export default function App() {
           </div>
           
           {user ? (
-            <div className="flex items-center gap-3 bg-slate-900/80 p-1 pl-1 pr-4 rounded-full border border-slate-700 shadow-md">
+            <div className="flex items-center gap-2 sm:gap-3 bg-slate-900/80 p-1 sm:pr-4 rounded-full border border-slate-700 shadow-md">
               <img src={user.photoURL || ''} className="w-8 h-8 rounded-full border-2 border-slate-700 shadow-sm" alt="User" />
-              <button onClick={() => signOut(auth)} className="text-[10px] font-bold text-slate-500 hover:text-white uppercase transition-colors tracking-widest">Logout</button>
+              <button onClick={() => signOut(auth)} className="hidden sm:block text-[10px] font-bold text-slate-500 hover:text-white uppercase transition-colors tracking-widest">Logout</button>
             </div>
           ) : (
-            <button onClick={handleLogin} className="flex items-center gap-2 px-6 py-2 bg-white text-slate-900 rounded font-bold text-sm shadow-xl hover:opacity-90 transition-all active:scale-95 uppercase tracking-tight">
+            <button onClick={handleLogin} className="flex items-center gap-2 px-3 sm:px-6 py-2 bg-white text-slate-900 rounded font-bold text-xs sm:text-sm shadow-xl hover:opacity-90 transition-all active:scale-95 uppercase tracking-tight">
               Sign In
             </button>
           )}
@@ -382,13 +547,13 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden">
+      <main className="min-h-0 flex-1 grid grid-rows-[minmax(7rem,22dvh)_minmax(0,1fr)_minmax(8rem,24dvh)] lg:grid-rows-1 lg:grid-cols-[minmax(13rem,18rem)_minmax(0,1fr)_minmax(14rem,20rem)] overflow-hidden">
         {/* Sidebar Controls */}
-        <aside className="w-72 bg-slate-900 border-r border-slate-800 p-6 flex flex-col gap-6 shadow-2xl z-10 overflow-y-auto">
+        <aside className="min-h-0 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 p-2 sm:p-3 lg:p-6 flex flex-col gap-3 lg:gap-6 shadow-2xl z-10 overflow-y-auto">
           <section>
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Current Expedition</h3>
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-800/50 rounded border border-slate-700/50 backdrop-blur-sm">
+            <h3 className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 lg:mb-4">Current Expedition</h3>
+            <div className="space-y-3 lg:space-y-4">
+              <div className="p-3 lg:p-4 bg-slate-800/50 rounded border border-slate-700/50 backdrop-blur-sm">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs font-semibold text-slate-300">Island Map 09-X</span>
                   <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest">Active</span>
@@ -427,9 +592,9 @@ export default function App() {
           </SidebarSection>
 
           <section>
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Relic Discovery</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded border border-slate-700/30">
+            <h3 className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 lg:mb-4">Relic Discovery</h3>
+            <div className="space-y-2 lg:space-y-3">
+              <div className="flex items-center justify-between p-2 lg:p-3 bg-slate-800/30 rounded border border-slate-700/30">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
                     <Trophy size={14} className="text-amber-500" />
@@ -439,7 +604,7 @@ export default function App() {
                 <span className="font-mono text-xs font-bold text-amber-500">{gameState?.stats.relicsCollected} / 3</span>
               </div>
               
-              <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded border border-slate-700/30">
+              <div className="flex items-center justify-between p-2 lg:p-3 bg-slate-800/30 rounded border border-slate-700/30">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded bg-red-500/10 flex items-center justify-center border border-red-500/20">
                     <Skull size={14} className="text-red-500" />
