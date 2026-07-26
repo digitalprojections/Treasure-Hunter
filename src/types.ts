@@ -21,6 +21,58 @@ export enum EntityType {
   EXIT = 'exit'
 }
 
+export type TileVisualId =
+  | 'altar'
+  | 'barricade'
+  | 'boar'
+  | 'cactus'
+  | 'cannon'
+  | 'deer'
+  | 'falcon'
+  | 'fireTurret'
+  | 'fish'
+  | 'flower'
+  | 'gold'
+  | 'goldMine'
+  | 'goblin'
+  | 'harpy'
+  | 'ironGate'
+  | 'key'
+  | 'magicGate'
+  | 'magicTurret'
+  | 'orc'
+  | 'potion'
+  | 'quest'
+  | 'rabbit'
+  | 'random'
+  | 'roadSign'
+  | 'scroll'
+  | 'skeleton'
+  | 'star'
+  | 'stone'
+  | 'stoneBridge'
+  | 'stoneGate'
+  | 'stump'
+  | 'teleport'
+  | 'troll'
+  | 'turret'
+  | 'turtle'
+  | 'village'
+  | 'waypoint'
+  | 'well'
+  | 'wolf'
+  | 'wood'
+  | 'woodBridge'
+  | 'woodenGate';
+
+export type TileVisualTone = 'ambient' | 'landmark' | 'threat' | 'resource' | 'wildlife';
+
+export interface TileVisual {
+  id: TileVisualId;
+  label: string;
+  tone: TileVisualTone;
+}
+
 export interface Tile {
   id: string;
   x: number;
@@ -28,6 +80,7 @@ export interface Tile {
   type: TileType;
   entity?: EntityType;
   entityFound?: boolean;
+  visual?: TileVisual;
   discovered: boolean;
 }
 

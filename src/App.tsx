@@ -12,19 +12,17 @@ import {
   Compass, 
   Telescope, 
   Settings, 
-  ChevronLeft, 
   Coins, 
   Trees, 
   Mountain as MountainIcon, 
   Sparkles,
-  User,
-  Calendar,
-  Ship
+  Calendar
 } from 'lucide-react';
 import { auth, googleProvider } from './lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { Tile, TileType, EntityType, GameState } from './types';
-import { generateIsland, getStartingPosition } from './utils/mapGenerator';
+import { generateIsland, getStartingPosition, REQUIRED_RELIC_COUNT } from './utils/mapGenerator';
+import { entityAssets, getVisualAsset, playerAsset, symbolAssets, tileTerrainAssets } from './data/assets';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import confetti from 'canvas-confetti';
@@ -77,7 +75,7 @@ const ResourceItem = ({ icon: Icon, value, label, color }: { icon: any, value: n
 );
 
 const SidebarSection = ({ title, children, icon: Icon }: { title: string, children: React.ReactNode, icon?: any }) => (
-  <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 lg:p-4 shadow-xl relative overflow-hidden">
+  <div className="shrink-0 bg-slate-900 border border-slate-800 rounded-lg p-3 lg:p-4 shadow-xl relative overflow-hidden">
     <div className="flex items-center gap-2 mb-3 lg:mb-4 border-b border-slate-800 pb-2">
       {Icon && <Icon size={14} className="text-slate-500" />}
       <h3 className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">{title}</h3>
@@ -322,7 +320,10 @@ export default function App() {
       let logType: 'info' | 'success' | 'warning' | 'error' = 'info';
 
       const updatedTiles = newTiles.map(t => {
-        if (t.x === x && t.y === y && t.entity && !t.entityFound) {
+        const isTargetEntity = t.x === x && t.y === y && t.entity;
+        const canTriggerEntity = isTargetEntity && (!t.entityFound || t.entity === EntityType.EXIT);
+
+        if (canTriggerEntity) {
           // Entity logic remains mostly same but could add variance
           if (t.entity === EntityType.TREASURE) {
             newResources.gold += Math.floor(Math.random() * 50) + 20;
@@ -344,12 +345,12 @@ export default function App() {
             awardAchievement('relic_collected', `${gameSessionIdRef.current}:relic:${newStats.relicsCollected}`, 'collecting a relic');
             
             // If all relics found, reveal the exit
-            if (newStats.relicsCollected >= 3) {
+            if (newStats.relicsCollected >= REQUIRED_RELIC_COUNT) {
               message = "All relics collected! The Extraction Point has been signaled. Find the Ship to escape!";
               logType = 'success';
             }
           } else if (t.entity === EntityType.EXIT) {
-            if (newStats.relicsCollected >= 3) {
+            if (newStats.relicsCollected >= REQUIRED_RELIC_COUNT) {
               message = "Escape successful! You've set sail for a new island.";
               logType = 'success';
               confetti({ particleCount: 200, spread: 160, origin: { y: 0.5 } });
@@ -357,8 +358,9 @@ export default function App() {
               // Trigger new game in next frame
               setTimeout(startNewGame, 3000);
             } else {
-              message = "The Ship remains docked. You must find all 3 relics before you can leave.";
+              message = `The Ship remains docked. You must find all ${REQUIRED_RELIC_COUNT} relics before you can leave.`;
               logType = 'warning';
+              return t;
             }
           } else if (t.entity === EntityType.RUIN) {
             newResources.stone += 10;
@@ -547,9 +549,9 @@ export default function App() {
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 grid grid-rows-[minmax(7rem,22dvh)_minmax(0,1fr)_minmax(8rem,24dvh)] lg:grid-rows-1 lg:grid-cols-[minmax(13rem,18rem)_minmax(0,1fr)_minmax(14rem,20rem)] overflow-hidden">
+      <main className="min-h-0 flex-1 grid grid-rows-[minmax(5rem,16dvh)_minmax(0,1fr)_minmax(7rem,20dvh)] lg:grid-rows-1 lg:grid-cols-[minmax(13rem,18rem)_minmax(0,1fr)_minmax(14rem,20rem)] overflow-hidden">
         {/* Sidebar Controls */}
-        <aside className="min-h-0 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 p-2 sm:p-3 lg:p-6 flex flex-col gap-3 lg:gap-6 shadow-2xl z-10 overflow-y-auto">
+        <aside className="custom-scrollbar min-h-0 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 p-2 sm:p-3 lg:p-6 flex flex-col gap-3 lg:gap-6 shadow-2xl z-10 overflow-y-auto">
           <section>
             <h3 className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 lg:mb-4">Current Expedition</h3>
             <div className="space-y-3 lg:space-y-4">
@@ -575,18 +577,18 @@ export default function App() {
 
           <SidebarSection title="Field Manual">
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-              <LegendItem label="Deep Water" color="bg-blue-900/40" />
-              <LegendItem label="Water" color="bg-blue-600/20" />
-              <LegendItem label="Sand" color="bg-amber-200/20" />
-              <LegendItem label="Grass" color="bg-emerald-600/30" />
-              <LegendItem label="Forest" color="bg-emerald-900/40" />
-              <LegendItem label="Mountain" color="bg-slate-500/30" />
+              <LegendItem label="Deep Water" image={tileTerrainAssets[TileType.DEEP_WATER]} color="bg-blue-950" />
+              <LegendItem label="Water" image={tileTerrainAssets[TileType.WATER]} color="bg-blue-800" />
+              <LegendItem label="Sand" image={tileTerrainAssets[TileType.SAND]} color="bg-amber-300" />
+              <LegendItem label="Grass" image={tileTerrainAssets[TileType.GRASS]} color="bg-emerald-700" />
+              <LegendItem label="Forest" image={tileTerrainAssets[TileType.FOREST]} color="bg-emerald-950" />
+              <LegendItem label="Mountain" image={tileTerrainAssets[TileType.MOUNTAIN]} color="bg-slate-600" />
               <div className="col-span-2 border-t border-slate-800 my-1 pt-2 opacity-80">
-                <LegendItem label="Treasure" color="bg-transparent" icon={Coins} />
-                <LegendItem label="Relic" color="bg-transparent" icon={Sparkles} />
-                <LegendItem label="Trap" color="bg-transparent" icon={Skull} />
-                <LegendItem label="Ruin" color="bg-transparent" icon={MountainIcon} />
-                <LegendItem label="Exit Ship" color="bg-transparent" icon={Ship} />
+                <LegendItem label="Treasure" color="bg-transparent" image={entityAssets[EntityType.TREASURE]} />
+                <LegendItem label="Relic" color="bg-transparent" image={entityAssets[EntityType.RELIC]} />
+                <LegendItem label="Trap" color="bg-transparent" image={entityAssets[EntityType.TRAP]} />
+                <LegendItem label="Ruin" color="bg-transparent" image={entityAssets[EntityType.RUIN]} />
+                <LegendItem label="Exit Port" color="bg-transparent" image={entityAssets[EntityType.EXIT]} />
               </div>
             </div>
           </SidebarSection>
@@ -601,7 +603,7 @@ export default function App() {
                   </div>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Total Relics</span>
                 </div>
-                <span className="font-mono text-xs font-bold text-amber-500">{gameState?.stats.relicsCollected} / 3</span>
+                <span className="font-mono text-xs font-bold text-amber-500">{gameState?.stats.relicsCollected} / {REQUIRED_RELIC_COUNT}</span>
               </div>
               
               <div className="flex items-center justify-between p-2 lg:p-3 bg-slate-800/30 rounded border border-slate-700/30">
@@ -652,17 +654,16 @@ export default function App() {
         </aside>
 
         {/* Map Visualization */}
-        <section className="flex-1 p-8 bg-slate-950 flex flex-col items-center justify-center relative shadow-[inset_0_0_100px_rgba(0,0,0,0.4)]">
-          <div className="absolute top-4 right-8 bg-slate-900 px-3 py-1 rounded text-[10px] font-mono border border-slate-800 text-slate-500 uppercase tracking-widest shadow-lg">
+        <section className="min-h-0 p-2 sm:p-3 lg:p-6 bg-slate-950 flex flex-col items-center justify-center relative shadow-[inset_0_0_100px_rgba(0,0,0,0.4)] overflow-hidden">
+          <div className="hidden sm:block absolute top-3 lg:top-4 right-3 lg:right-8 bg-slate-900 px-3 py-1 rounded text-[10px] font-mono border border-slate-800 text-slate-500 uppercase tracking-widest shadow-lg">
             Region ID: #49F-22B
           </div>
           
           <div 
-            className="grid gap-1.5 p-3 bg-slate-900 border border-slate-800 rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
+            className="treasure-map-board shrink-0 grid gap-0 p-1 bg-slate-900 border border-slate-800 rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
             style={{ 
               gridTemplateColumns: `repeat(12, minmax(0, 1fr))`,
-              width: '640px',
-              height: '640px'
+              gridTemplateRows: `repeat(12, minmax(0, 1fr))`,
             }}
           >
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none" />
@@ -678,10 +679,10 @@ export default function App() {
         </section>
 
         {/* Bottom Console / Log (Combined better) */}
-        <aside className="w-80 flex flex-col bg-slate-900 border-l border-slate-800 shadow-2xl z-10">
-          <div className="p-6 border-b border-slate-800">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Expedition Log</h3>
-            <div className="h-[480px] overflow-y-auto pr-2 custom-scrollbar font-mono text-[11px]">
+        <aside className="min-h-0 flex flex-col bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 shadow-2xl z-10">
+          <div className="min-h-0 flex flex-1 flex-col p-2 sm:p-3 lg:p-6 border-b border-slate-800">
+            <h3 className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 lg:mb-4">Expedition Log</h3>
+            <div className="min-h-0 flex-1 overflow-y-auto pr-2 custom-scrollbar font-mono text-[11px]">
               {logs.map((log, i) => (
                 <LogItem key={i} message={log.message} type={log.type} timestamp={log.timestamp} />
               ))}
@@ -689,10 +690,10 @@ export default function App() {
             </div>
           </div>
           
-          <div className="p-6 mt-auto space-y-3">
+          <div className="shrink-0 p-2 sm:p-3 lg:p-6 space-y-2 lg:space-y-3">
              <button 
               onClick={handleEndTurn}
-              className="w-full py-4 bg-amber-600 hover:bg-amber-500 text-white font-bold uppercase tracking-widest rounded shadow-xl shadow-amber-900/20 transform hover:-translate-y-0.5 transition-all active:translate-y-0 flex items-center justify-center gap-2"
+              className="w-full py-2.5 lg:py-4 bg-amber-600 hover:bg-amber-500 text-white font-bold uppercase tracking-widest rounded shadow-xl shadow-amber-900/20 transform hover:-translate-y-0.5 transition-all active:translate-y-0 flex items-center justify-center gap-2"
             >
               <Calendar size={18} />
               Conclude Day
@@ -701,11 +702,11 @@ export default function App() {
             <div className="grid grid-cols-2 gap-2">
               <button 
                 onClick={startNewGame}
-                className="py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold uppercase text-[10px] tracking-widest rounded transition-all"
+                className="py-2 lg:py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold uppercase text-[10px] tracking-widest rounded transition-all"
               >
                 Reset map
               </button>
-              <button className="py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold uppercase text-[10px] tracking-widest rounded opacity-50 cursor-not-allowed">
+              <button className="py-2 lg:py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold uppercase text-[10px] tracking-widest rounded opacity-50 cursor-not-allowed">
                 Settings
               </button>
             </div>
@@ -713,7 +714,7 @@ export default function App() {
         </aside>
       </main>
 
-      <footer className="h-10 bg-slate-950 border-t border-slate-900 flex items-center justify-between px-8 text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em]">
+      <footer className="hidden sm:flex shrink-0 h-8 lg:h-10 bg-slate-950 border-t border-slate-900 items-center justify-between px-4 lg:px-8 text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em]">
         <span>Experimental Build v0.8.2</span>
         <span>Secure Session Linked</span>
         <span>Satellite Uplink: Active</span>
@@ -728,9 +729,10 @@ interface TileComponentProps {
   onClick: () => void;
 }
 
-const LegendItem = ({ label, color, icon: Icon }: { label: string, color: string, icon?: any }) => (
+const LegendItem = ({ label, color, icon: Icon, image }: { label: string, color: string, icon?: any, image?: string }) => (
   <div className="flex items-center gap-3 py-1">
-    <div className={cn("w-3 h-3 rounded shadow-inner border border-white/10", color)}>
+    <div className={cn("w-4 h-4 rounded shadow-inner border border-white/10 overflow-hidden", color)}>
+      {image && <img src={image} alt="" className="h-full w-full object-fill" draggable={false} />}
       {Icon && <Icon size={10} className="text-white mx-auto mt-[1px]" />}
     </div>
     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{label}</span>
@@ -751,16 +753,12 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, onClick 
     }
   };
 
-  const getEntityIcon = (entity: EntityType) => {
-    switch (entity) {
-      case EntityType.TREASURE: return <Coins className="text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" size={20} />;
-      case EntityType.TRAP: return <Skull className="text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" size={20} />;
-      case EntityType.RELIC: return <Sparkles className="text-purple-400 animate-pulse drop-shadow-[0_0_8px_rgba(192,132,252,0.8)]" size={20} />;
-      case EntityType.RUIN: return <MountainIcon className="text-slate-400" size={16} />;
-      case EntityType.EXIT: return <Ship className="text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]" size={20} />;
-      default: return null;
-    }
-  };
+  const terrainAsset = tileTerrainAssets[tile.type];
+  const entityAsset = tile.entity ? entityAssets[tile.entity] : undefined;
+  const visualAsset = tile.visual ? getVisualAsset(tile.visual.id, tile.id) : undefined;
+  const baseAsset = visualAsset && !entityAsset ? visualAsset : terrainAsset;
+  const tileLabel = tile.type.replace('_', ' ');
+  const baseLabel = tile.visual && !entityAsset ? tile.visual.label : tileLabel;
 
   return (
     <motion.div 
@@ -769,7 +767,7 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, onClick 
       onMouseLeave={() => setIsHovered(false)}
       whileHover={tile.discovered ? { scale: 0.98, backgroundColor: 'rgba(255,255,255,0.05)' } : {}}
       className={cn(
-        "relative cursor-pointer aspect-square rounded overflow-hidden transition-all duration-700 group border border-slate-800/50",
+        "relative cursor-pointer aspect-square overflow-hidden transition-all duration-700 group",
         !tile.discovered && "bg-slate-800"
       )}
     >
@@ -781,7 +779,8 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, onClick 
             exit={{ opacity: 0, y: 10 }}
             className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-slate-700 px-2 py-1 rounded text-[9px] font-bold text-white uppercase tracking-widest whitespace-nowrap shadow-2xl pointer-events-none"
           >
-            {tile.type.replace('_', ' ')}
+            {tileLabel}
+            {tile.visual && !tile.entity && ` • ${tile.visual.label}`}
             {tile.entity && tile.entityFound && ` • ${tile.entity}`}
           </motion.div>
         )}
@@ -794,23 +793,40 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, onClick 
             transition={{ duration: 0.8 }}
             className="absolute inset-0 bg-slate-800 z-20 flex items-center justify-center group-hover:bg-slate-700 transition-colors"
           >
-            <div className="w-1.5 h-1.5 bg-slate-700 rounded-full opacity-20" />
+            <img src={symbolAssets.fog} alt="" className="h-full w-full object-fill opacity-70 grayscale" draggable={false} />
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className={cn("absolute inset-0 z-0", getTileColor(tile.type))} />
+      <div className={cn("absolute inset-0 z-0", getTileColor(tile.type))}>
+        <img
+          src={baseAsset}
+          alt={baseLabel}
+          className={cn(
+            "h-full w-full object-fill transition-transform duration-500 group-hover:scale-110",
+            tile.type === TileType.DEEP_WATER && "brightness-50 saturate-150",
+            tile.type === TileType.WATER && "brightness-75 saturate-125"
+          )}
+          draggable={false}
+        />
+        <div className="absolute inset-0 bg-slate-950/10 mix-blend-multiply" />
+      </div>
       
-      {tile.discovered && tile.entity && (
+      {tile.discovered && entityAsset && (
         <motion.div 
           initial={{ scale: 0, opacity: 0, rotate: -20 }}
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
           className={cn(
-            "absolute inset-0 flex items-center justify-center z-10 transition-opacity",
+            "absolute inset-0 flex items-center justify-center z-10 p-1 transition-opacity",
             tile.entityFound && "opacity-30 grayscale"
           )}
         >
-          {getEntityIcon(tile.entity)}
+          <img
+            src={entityAsset}
+            alt={tile.entity}
+            className="max-h-full max-w-full object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,0.45)]"
+            draggable={false}
+          />
         </motion.div>
       )}
 
@@ -818,10 +834,11 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, onClick 
         {isCurrent && (
           <motion.div 
             layoutId="player"
-            className="absolute inset-0 z-30 flex items-center justify-center p-2"
+            className="absolute inset-0 z-30 flex items-center justify-center overflow-visible"
           >
-            <div className="w-full h-full bg-white rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.4)] border border-white/50 flex items-center justify-center ring-4 ring-white/10 ring-offset-2 ring-offset-slate-900">
-              <div className="w-2 h-2 bg-slate-900 rounded-full animate-ping" />
+            <div className="relative h-[118%] w-[118%] rounded-full shadow-[0_0_22px_rgba(255,255,255,0.32)] ring-2 ring-white/35">
+              <img src={playerAsset} alt="Explorer" className="h-full w-full object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.65)]" draggable={false} />
+              <div className="absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-white/70 animate-ping" />
             </div>
           </motion.div>
         )}

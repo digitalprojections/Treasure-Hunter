@@ -3,3 +3,53 @@
 @theme {
   --animate-spin-slow: spin 8s linear infinite;
 }
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+.treasure-map-board {
+  --board-size: clamp(340px, min(50vw, calc(100dvh - 9rem)), 700px);
+  width: var(--board-size);
+  height: var(--board-size);
+}
+
+.custom-scrollbar {
+  scrollbar-color: rgb(51 65 85) rgb(15 23 42);
+  scrollbar-width: thin;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgb(15 23 42);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(51 65 85);
+  border: 2px solid rgb(15 23 42);
+  border-radius: 999px;
+}
+
+@media (max-width: 1023px) {
+  .treasure-map-board {
+    --board-size: clamp(170px, min(98vw, calc(100dvh - 21.5rem)), 700px);
+  }
+}
+
+@media (max-width: 640px) {
+  .treasure-map-board {
+    --board-size: clamp(160px, min(98vw, calc(100dvh - 21.5rem)), 700px);
+  }
+}
+
+@media (max-height: 680px) and (max-width: 1023px) {
+  .treasure-map-board {
+    --board-size: clamp(150px, min(96vw, calc(100dvh - 21.5rem)), 700px);
+  }
+}
