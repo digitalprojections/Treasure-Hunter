@@ -22,14 +22,11 @@ import { auth, googleProvider } from './lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { Tile, TileType, EntityType, GameState } from './types';
 import { generateIsland, getStartingPosition, REQUIRED_RELIC_COUNT } from './utils/mapGenerator';
-import { entityAssets, getVisualAsset, playerAsset, symbolAssets, tileTerrainAssets } from './data/assets';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { entitySpriteBoxes, playerSpriteBoxes, symbolSpriteBoxes, tileTerrainSpriteBoxes, visualSpriteBoxes } from './data/spriteboxes';
+import { SpriteBox } from './SpriteBox';
+import { CharacterAnimationState, getHorizontalFacingAfterMove, HorizontalFacing, SpriteBoxModule } from './utils/spritebox';
+import { cn } from './utils/styles';
 import confetti from 'canvas-confetti';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 const GAMES_API_BASE_URL = (import.meta.env.VITE_GAMES_API_URL || '').replace(/\/$/, '');
 
@@ -60,6 +57,15 @@ type GameSessionResponse = {
 function createSessionId() {
   return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
+
+const playerAnimationDurationMs: Record<CharacterAnimationState, number> = {
+  idle: 0,
+  walk: 520,
+  scout: 900,
+  collect: 900,
+  hit: 760,
+  escape: 2400,
+};
 
 // Sub-components
 const ResourceItem = ({ icon: Icon, value, label, color }: { icon: any, value: number, label: string, color: string }) => (
@@ -111,12 +117,51 @@ export default function App() {
   const [logs, setLogs] = useState<{ message: string, type: 'info' | 'success' | 'warning' | 'error', timestamp: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [pointsEarnedToday, setPointsEarnedToday] = useState(0);
+  const [spriteClockMs, setSpriteClockMs] = useState(0);
+  const [playerAnimation, setPlayerAnimation] = useState<CharacterAnimationState>('idle');
+  const [playerFacing, setPlayerFacing] = useState<HorizontalFacing>('right');
   const gameSessionIdRef = useRef(createSessionId());
   const sharedApiSessionIdRef = useRef<string | null>(null);
   const [sharedApiSessionId, setSharedApiSessionId] = useState<string | null>(null);
+  const playerAnimationTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const startedAt = performance.now();
+    const intervalId = window.setInterval(() => {
+      setSpriteClockMs(performance.now() - startedAt);
+    }, 120);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (playerAnimationTimeoutRef.current !== null) {
+        window.clearTimeout(playerAnimationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const playPlayerAnimation = useCallback((animation: CharacterAnimationState) => {
+    if (playerAnimationTimeoutRef.current !== null) {
+      window.clearTimeout(playerAnimationTimeoutRef.current);
+      playerAnimationTimeoutRef.current = null;
+    }
+
+    setPlayerAnimation(animation);
+
+    const duration = playerAnimationDurationMs[animation];
+    if (duration > 0) {
+      playerAnimationTimeoutRef.current = window.setTimeout(() => {
+        setPlayerAnimation('idle');
+        playerAnimationTimeoutRef.current = null;
+      }, duration);
+    }
+  }, []);
 
   // Initialize Game
   const startNewGame = useCallback(() => {
+    playPlayerAnimation('idle');
     gameSessionIdRef.current = createSessionId();
     const tiles = generateIsland();
     const startPos = getStartingPosition(tiles);
@@ -139,7 +184,7 @@ export default function App() {
       isGameOver: false,
     });
     setLogs([{ message: "Shipwrecked! You've landed on a mysterious island...", type: 'warning', timestamp: new Date().toLocaleTimeString([], { hour12: false }) }]);
-  }, []);
+  }, [playPlayerAnimation]);
 
   // Auth Handling
   useEffect(() => {
@@ -304,6 +349,21 @@ export default function App() {
       return;
     }
 
+    const targetEntityCanTrigger = targetTile.entity && (!targetTile.entityFound || targetTile.entity === EntityType.EXIT);
+    setPlayerFacing((currentFacing) => getHorizontalFacingAfterMove(currentFacing, gameState.playerPos.x, x));
+    const moveAnimation: CharacterAnimationState = (() => {
+      if (!targetEntityCanTrigger) return 'walk';
+      if (targetTile.entity === EntityType.TRAP) return 'hit';
+      if (targetTile.entity === EntityType.EXIT) {
+        return gameState.stats.relicsCollected >= REQUIRED_RELIC_COUNT ? 'escape' : 'scout';
+      }
+      if (targetTile.entity === EntityType.TREASURE || targetTile.entity === EntityType.RELIC || targetTile.entity === EntityType.RUIN) {
+        return 'collect';
+      }
+      return 'walk';
+    })();
+    playPlayerAnimation(moveAnimation);
+
     setGameState(prev => {
       if (!prev) return null;
 
@@ -395,6 +455,8 @@ export default function App() {
       addLog("Insufficient gold for scouting mission.", "error");
       return;
     }
+
+    playPlayerAnimation('scout');
     
     setGameState(prev => {
       if (!prev) return null;
@@ -426,6 +488,8 @@ export default function App() {
       return;
     }
 
+    playPlayerAnimation('scout');
+
     setGameState(prev => {
       if (!prev) return null;
       // Just mark one as discovered for the user as a "hint"
@@ -450,6 +514,7 @@ export default function App() {
     }
 
     addLog("Consulting the ancient archives...", "info");
+    playPlayerAnimation('scout');
     try {
       const response = await fetch(gameApiUrl('/api/games/treasure-hunter/clue'), {
         method: 'POST',
@@ -577,18 +642,18 @@ export default function App() {
 
           <SidebarSection title="Field Manual">
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-              <LegendItem label="Deep Water" image={tileTerrainAssets[TileType.DEEP_WATER]} color="bg-blue-950" />
-              <LegendItem label="Water" image={tileTerrainAssets[TileType.WATER]} color="bg-blue-800" />
-              <LegendItem label="Sand" image={tileTerrainAssets[TileType.SAND]} color="bg-amber-300" />
-              <LegendItem label="Grass" image={tileTerrainAssets[TileType.GRASS]} color="bg-emerald-700" />
-              <LegendItem label="Forest" image={tileTerrainAssets[TileType.FOREST]} color="bg-emerald-950" />
-              <LegendItem label="Mountain" image={tileTerrainAssets[TileType.MOUNTAIN]} color="bg-slate-600" />
+              <LegendItem label="Deep Water" spriteBox={tileTerrainSpriteBoxes[TileType.DEEP_WATER]} color="bg-blue-950" />
+              <LegendItem label="Water" spriteBox={tileTerrainSpriteBoxes[TileType.WATER]} color="bg-blue-800" />
+              <LegendItem label="Sand" spriteBox={tileTerrainSpriteBoxes[TileType.SAND]} color="bg-amber-300" />
+              <LegendItem label="Grass" spriteBox={tileTerrainSpriteBoxes[TileType.GRASS]} color="bg-emerald-700" />
+              <LegendItem label="Forest" spriteBox={tileTerrainSpriteBoxes[TileType.FOREST]} color="bg-emerald-950" />
+              <LegendItem label="Mountain" spriteBox={tileTerrainSpriteBoxes[TileType.MOUNTAIN]} color="bg-slate-600" />
               <div className="col-span-2 border-t border-slate-800 my-1 pt-2 opacity-80">
-                <LegendItem label="Treasure" color="bg-transparent" image={entityAssets[EntityType.TREASURE]} />
-                <LegendItem label="Relic" color="bg-transparent" image={entityAssets[EntityType.RELIC]} />
-                <LegendItem label="Trap" color="bg-transparent" image={entityAssets[EntityType.TRAP]} />
-                <LegendItem label="Ruin" color="bg-transparent" image={entityAssets[EntityType.RUIN]} />
-                <LegendItem label="Exit Port" color="bg-transparent" image={entityAssets[EntityType.EXIT]} />
+                <LegendItem label="Treasure" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.TREASURE]} />
+                <LegendItem label="Relic" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.RELIC]} />
+                <LegendItem label="Trap" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.TRAP]} />
+                <LegendItem label="Ruin" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.RUIN]} />
+                <LegendItem label="Exit Port" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.EXIT]} />
               </div>
             </div>
           </SidebarSection>
@@ -672,6 +737,9 @@ export default function App() {
                 key={tile.id} 
                 tile={tile} 
                 isCurrent={gameState.playerPos.x === tile.x && gameState.playerPos.y === tile.y}
+                playerAnimation={playerAnimation}
+                playerFacing={playerFacing}
+                spriteClockMs={spriteClockMs}
                 onClick={() => handleMove(tile.x, tile.y)}
               />
             ))}
@@ -726,20 +794,41 @@ export default function App() {
 interface TileComponentProps {
   tile: Tile;
   isCurrent: boolean;
+  playerAnimation: CharacterAnimationState;
+  playerFacing: HorizontalFacing;
+  spriteClockMs: number;
   onClick: () => void;
 }
 
-const LegendItem = ({ label, color, icon: Icon, image }: { label: string, color: string, icon?: any, image?: string }) => (
+const LegendItem = ({ label, color, icon: Icon, spriteBox }: { label: string, color: string, icon?: any, spriteBox?: SpriteBoxModule }) => (
   <div className="flex items-center gap-3 py-1">
     <div className={cn("w-4 h-4 rounded shadow-inner border border-white/10 overflow-hidden", color)}>
-      {image && <img src={image} alt="" className="h-full w-full object-fill" draggable={false} />}
+      {spriteBox && <SpriteBox spriteBox={spriteBox} seed={`legend:${label}`} alt="" imageClassName="object-fill" />}
       {Icon && <Icon size={10} className="text-white mx-auto mt-[1px]" />}
     </div>
     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{label}</span>
   </div>
 );
 
-const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, onClick }) => {
+function getPlayerAnimationMotion(animation: CharacterAnimationState) {
+  switch (animation) {
+    case 'walk':
+      return { y: [0, -4, 0], scale: [1, 1.04, 1] };
+    case 'scout':
+      return { rotate: [0, -7, 7, 0], scale: [1, 1.06, 1] };
+    case 'collect':
+      return { y: [0, -7, 0], scale: [1, 1.16, 1] };
+    case 'hit':
+      return { x: [0, -5, 5, -3, 0], scale: [1, 0.92, 1] };
+    case 'escape':
+      return { y: [0, -9, 0], scale: [1, 1.18, 1], rotate: [0, -4, 4, 0] };
+    case 'idle':
+    default:
+      return { x: 0, y: 0, rotate: 0, scale: 1 };
+  }
+}
+
+const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, playerAnimation, playerFacing, spriteClockMs, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const getTileColor = (type: TileType) => {
     switch (type) {
@@ -753,12 +842,12 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, onClick 
     }
   };
 
-  const terrainAsset = tileTerrainAssets[tile.type];
-  const entityAsset = tile.entity ? entityAssets[tile.entity] : undefined;
-  const visualAsset = tile.visual ? getVisualAsset(tile.visual.id, tile.id) : undefined;
-  const baseAsset = visualAsset && !entityAsset ? visualAsset : terrainAsset;
+  const terrainSpriteBox = tileTerrainSpriteBoxes[tile.type];
+  const entitySpriteBox = tile.entity ? entitySpriteBoxes[tile.entity] : undefined;
+  const visualSpriteBox = tile.visual ? visualSpriteBoxes[tile.visual.id] : undefined;
+  const baseSpriteBox = visualSpriteBox && !entitySpriteBox ? visualSpriteBox : terrainSpriteBox;
   const tileLabel = tile.type.replace('_', ' ');
-  const baseLabel = tile.visual && !entityAsset ? tile.visual.label : tileLabel;
+  const baseLabel = tile.visual && !entitySpriteBox ? tile.visual.label : tileLabel;
 
   return (
     <motion.div 
@@ -793,26 +882,32 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, onClick 
             transition={{ duration: 0.8 }}
             className="absolute inset-0 bg-slate-800 z-20 flex items-center justify-center group-hover:bg-slate-700 transition-colors"
           >
-            <img src={symbolAssets.fog} alt="" className="h-full w-full object-fill opacity-70 grayscale" draggable={false} />
+            <SpriteBox
+              spriteBox={symbolSpriteBoxes.fog}
+              seed={`${tile.id}:fog`}
+              alt=""
+              imageClassName="object-fill opacity-70 grayscale"
+            />
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className={cn("absolute inset-0 z-0", getTileColor(tile.type))}>
-        <img
-          src={baseAsset}
+        <SpriteBox
+          spriteBox={baseSpriteBox}
+          seed={tile.id}
+          elapsedMs={spriteClockMs}
           alt={baseLabel}
           className={cn(
-            "h-full w-full object-fill transition-transform duration-500 group-hover:scale-110",
             tile.type === TileType.DEEP_WATER && "brightness-50 saturate-150",
             tile.type === TileType.WATER && "brightness-75 saturate-125"
           )}
-          draggable={false}
+          imageClassName="object-fill transition-transform duration-500 group-hover:scale-110"
         />
         <div className="absolute inset-0 bg-slate-950/10 mix-blend-multiply" />
       </div>
       
-      {tile.discovered && entityAsset && (
+      {tile.discovered && entitySpriteBox && (
         <motion.div 
           initial={{ scale: 0, opacity: 0, rotate: -20 }}
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
@@ -821,11 +916,12 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, onClick 
             tile.entityFound && "opacity-30 grayscale"
           )}
         >
-          <img
-            src={entityAsset}
+          <SpriteBox
+            spriteBox={entitySpriteBox}
+            seed={`${tile.id}:${tile.entity}`}
+            elapsedMs={spriteClockMs}
             alt={tile.entity}
-            className="max-h-full max-w-full object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,0.45)]"
-            draggable={false}
+            imageClassName="object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,0.45)]"
           />
         </motion.div>
       )}
@@ -834,11 +930,21 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, onClick 
         {isCurrent && (
           <motion.div 
             layoutId="player"
+            animate={getPlayerAnimationMotion(playerAnimation)}
+            transition={{ duration: 0.28, ease: 'easeOut' }}
             className="absolute inset-0 z-30 flex items-center justify-center overflow-visible"
           >
-            <div className="relative h-[118%] w-[118%] rounded-full shadow-[0_0_22px_rgba(255,255,255,0.32)] ring-2 ring-white/35">
-              <img src={playerAsset} alt="Explorer" className="h-full w-full object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.65)]" draggable={false} />
-              <div className="absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-white/70 animate-ping" />
+            <div className="relative h-[118%] w-[118%]">
+              <SpriteBox
+                spriteBox={playerSpriteBoxes[playerAnimation]}
+                seed={`player:mage:${playerAnimation}`}
+                elapsedMs={spriteClockMs}
+                alt="Mage"
+                imageClassName={cn(
+                  "object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.65)] transition-transform duration-150",
+                  playerFacing === 'left' && "-scale-x-100"
+                )}
+              />
             </div>
           </motion.div>
         )}

@@ -1,17 +1,22 @@
 import { EntityType, TileType, TileVisualId } from '../types';
 
-import archerHero from '../../assets/heroes/archer.png';
-import archerHeroCutout from '../../assets/heroes/bg_removed__archer_.png';
-import engineerHero from '../../assets/heroes/engineer.png';
-import engineerHeroCutout from '../../assets/heroes/bg_removed__engineer.png';
-import explorerHero from '../../assets/heroes/explorer.png';
-import explorerHeroCutout from '../../assets/heroes/bg_removed__explorer_.png';
-import mageHero from '../../assets/heroes/mage.png';
-import mageHeroCutout from '../../assets/heroes/bg_removed__mage.png';
-import scoutHero from '../../assets/heroes/scout.png';
-import scoutHeroCutout from '../../assets/heroes/bg_removed__scout.png';
-import soldierHero from '../../assets/heroes/soldier.png';
-import soldierHeroCutout from '../../assets/heroes/bg_removed__soldier.png';
+import archerHero from '../../assets/heroes/archer/archer.png';
+import archerHeroCutout from '../../assets/heroes/archer/bg_removed__archer_.png';
+import engineerHero from '../../assets/heroes/engineer/engineer.png';
+import engineerHeroCutout from '../../assets/heroes/engineer/bg_removed__engineer.png';
+import explorerHero from '../../assets/heroes/explorer/explorer.png';
+import explorerHeroCutout from '../../assets/heroes/explorer/bg_removed__explorer_.png';
+import mageFrame1 from '../../assets/heroes/mage/Sprite_Animation_centered_001.png';
+import mageFrame2 from '../../assets/heroes/mage/Sprite_Animation_centered_002.png';
+import mageFrame3 from '../../assets/heroes/mage/Sprite_Animation_centered_003.png';
+import mageFrame4 from '../../assets/heroes/mage/Sprite_Animation_centered_004.png';
+import mageFrame5 from '../../assets/heroes/mage/Sprite_Animation_centered_005.png';
+import mageFrame6 from '../../assets/heroes/mage/Sprite_Animation_centered_006.png';
+import mageFrame7 from '../../assets/heroes/mage/Sprite_Animation_centered_007.png';
+import scoutHero from '../../assets/heroes/scout/scout.png';
+import scoutHeroCutout from '../../assets/heroes/scout/bg_removed__scout.png';
+import soldierHero from '../../assets/heroes/soldier/soldier.png';
+import soldierHeroCutout from '../../assets/heroes/soldier/bg_removed__soldier.png';
 
 import goblinEnemy from '../../assets/enemies/goblin.png';
 import harpyEnemy from '../../assets/enemies/harpy.png';
@@ -97,7 +102,7 @@ export const heroAssets = {
   archer: archerHero,
   engineer: engineerHero,
   explorer: explorerHero,
-  mage: mageHero,
+  mage: mageFrame1,
   scout: scoutHero,
   soldier: soldierHero,
 } as const;
@@ -106,10 +111,20 @@ export const heroCutoutAssets = {
   archer: archerHeroCutout,
   engineer: engineerHeroCutout,
   explorer: explorerHeroCutout,
-  mage: mageHeroCutout,
+  mage: mageFrame1,
   scout: scoutHeroCutout,
   soldier: soldierHeroCutout,
 } as const;
+
+export const mageAnimationAssets = [
+  mageFrame1,
+  mageFrame2,
+  mageFrame3,
+  mageFrame4,
+  mageFrame5,
+  mageFrame6,
+  mageFrame7,
+] as const;
 
 export const enemyAssets = {
   goblin: goblinEnemy,
