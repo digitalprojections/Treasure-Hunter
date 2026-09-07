@@ -42,6 +42,13 @@ function looperBox(id: string, label: string, entries: readonly [readonly [strin
   );
 }
 
+function animationEntries(frames: readonly string[], pathPrefix: string) {
+  return frames.map((frame, index) => [frame, `${pathPrefix}_${String(index + 1).padStart(3, '0')}`] as const) as [
+    readonly [string, string],
+    ...readonly [string, string][],
+  ];
+}
+
 export const tileTerrainSpriteBoxes: Record<TileType, SpriteBoxModule> = {
   [TileType.WATER]: staticBox('terrain.shallow_water', 'Water', [[tileTerrainAssets[TileType.WATER], 'terrain/shallow_water']]),
   [TileType.SAND]: staticBox('terrain.desert', 'Sand', [[tileTerrainAssets[TileType.SAND], 'terrain/desert']]),
@@ -138,41 +145,9 @@ export const symbolSpriteBoxes = {
 
 export const playerSpriteBoxes: CharacterSpriteBoxSet = {
   idle: staticBox('hero.mage.idle', 'Mage idle', [[heroCutoutAssets.mage, 'heroes/mage/idle_001']]),
-  walk: looperBox('hero.mage.walk', 'Mage walking', [
-    [mageAnimationAssets[0], 'heroes/mage/walk_001'],
-    [mageAnimationAssets[1], 'heroes/mage/walk_002'],
-    [mageAnimationAssets[2], 'heroes/mage/walk_003'],
-    [mageAnimationAssets[3], 'heroes/mage/walk_004'],
-    [mageAnimationAssets[4], 'heroes/mage/walk_005'],
-    [mageAnimationAssets[5], 'heroes/mage/walk_006'],
-    [mageAnimationAssets[6], 'heroes/mage/walk_007'],
-  ], 120),
-  scout: looperBox('hero.mage.scout', 'Mage scouting', [
-    [mageAnimationAssets[0], 'heroes/mage/scout_001'],
-    [mageAnimationAssets[1], 'heroes/mage/scout_002'],
-    [mageAnimationAssets[2], 'heroes/mage/scout_003'],
-    [mageAnimationAssets[3], 'heroes/mage/scout_004'],
-    [mageAnimationAssets[4], 'heroes/mage/scout_005'],
-    [mageAnimationAssets[5], 'heroes/mage/scout_006'],
-    [mageAnimationAssets[6], 'heroes/mage/scout_007'],
-  ], 140),
-  collect: looperBox('hero.mage.collect', 'Mage collecting', [
-    [mageAnimationAssets[0], 'heroes/mage/collect_001'],
-    [mageAnimationAssets[1], 'heroes/mage/collect_002'],
-    [mageAnimationAssets[2], 'heroes/mage/collect_003'],
-    [mageAnimationAssets[3], 'heroes/mage/collect_004'],
-    [mageAnimationAssets[4], 'heroes/mage/collect_005'],
-    [mageAnimationAssets[5], 'heroes/mage/collect_006'],
-    [mageAnimationAssets[6], 'heroes/mage/collect_007'],
-  ], 110),
-  hit: staticBox('hero.mage.hit', 'Mage hit', [[mageAnimationAssets[3], 'heroes/mage/hit_001']]),
-  escape: looperBox('hero.mage.escape', 'Mage escaping', [
-    [mageAnimationAssets[0], 'heroes/mage/escape_001'],
-    [mageAnimationAssets[1], 'heroes/mage/escape_002'],
-    [mageAnimationAssets[2], 'heroes/mage/escape_003'],
-    [mageAnimationAssets[3], 'heroes/mage/escape_004'],
-    [mageAnimationAssets[4], 'heroes/mage/escape_005'],
-    [mageAnimationAssets[5], 'heroes/mage/escape_006'],
-    [mageAnimationAssets[6], 'heroes/mage/escape_007'],
-  ], 120),
+  walk: looperBox('hero.mage.walk', 'Mage walking', animationEntries(mageAnimationAssets.walk, 'heroes/mage/walk'), 120),
+  scout: looperBox('hero.mage.scout', 'Mage scouting', animationEntries(mageAnimationAssets.scout, 'heroes/mage/scout'), 140),
+  collect: looperBox('hero.mage.collect', 'Mage collecting', animationEntries(mageAnimationAssets.collect, 'heroes/mage/collect'), 110),
+  hit: looperBox('hero.mage.hit', 'Mage hit', animationEntries(mageAnimationAssets.hit, 'heroes/mage/hit'), 150),
+  escape: looperBox('hero.mage.escape', 'Mage escaping', animationEntries(mageAnimationAssets.walk, 'heroes/mage/escape'), 100),
 };

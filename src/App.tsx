@@ -16,15 +16,18 @@ import {
   Trees, 
   Mountain as MountainIcon, 
   Sparkles,
+  Shield,
   Calendar
 } from 'lucide-react';
 import { auth, googleProvider } from './lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { Tile, TileType, EntityType, GameState } from './types';
 import { generateIsland, getStartingPosition, REQUIRED_RELIC_COUNT } from './utils/mapGenerator';
-import { entitySpriteBoxes, playerSpriteBoxes, symbolSpriteBoxes, tileTerrainSpriteBoxes, visualSpriteBoxes } from './data/spriteboxes';
+import { entitySpriteBoxes, symbolSpriteBoxes, tileTerrainSpriteBoxes, visualSpriteBoxes } from './data/spriteboxes';
+import { activeCharacter } from './data/characters';
 import { SpriteBox } from './SpriteBox';
 import { CharacterAnimationState, getHorizontalFacingAfterMove, HorizontalFacing, SpriteBoxModule } from './utils/spritebox';
+import { canUseCharacterSkill, CharacterSkill, getSkillCostLabel, spendSkillCost, startSkillCooldown, tickSkillCooldowns } from './utils/characterSkills';
 import { cn } from './utils/styles';
 import confetti from 'canvas-confetti';
 
@@ -182,6 +185,7 @@ export default function App() {
       maxStamina: 20,
       stats: { treasuresFound: 0, relicsCollected: 0, trapsTriggered: 0, daysElapsed: 1 },
       isGameOver: false,
+      skillCooldowns: {},
     });
     setLogs([{ message: "Shipwrecked! You've landed on a mysterious island...", type: 'warning', timestamp: new Date().toLocaleTimeString([], { hour12: false }) }]);
   }, [playPlayerAnimation]);
@@ -450,87 +454,101 @@ export default function App() {
     });
   };
 
-  const handleScout = () => {
-    if (!gameState || gameState.resources.gold < 50) {
-      addLog("Insufficient gold for scouting mission.", "error");
+  const chargeSkill = (state: GameState, skill: CharacterSkill): GameState => {
+    const chargedState = spendSkillCost(state, skill);
+    return {
+      ...chargedState,
+      skillCooldowns: startSkillCooldown(chargedState.skillCooldowns, skill),
+    };
+  };
+
+  const handleUseSkill = async (skill: CharacterSkill) => {
+    if (!gameState || gameState.isGameOver) return;
+
+    const availability = canUseCharacterSkill(skill, gameState);
+    if (!availability.canUse) {
+      addLog(availability.reason || `${skill.label} is unavailable.`, 'error');
       return;
     }
 
-    playPlayerAnimation('scout');
-    
+    if (skill.id === 'relic_survey') {
+      const relics = gameState.tiles.filter(t => t.entity === EntityType.RELIC && !t.entityFound);
+      if (relics.length === 0) {
+        addLog('No unrecovered relic signals detected.', 'warning');
+        return;
+      }
+    }
+
+    playPlayerAnimation(skill.animation);
+
+    if (skill.id === 'archive_clue') {
+      addLog('Consulting the archives...', 'info');
+      try {
+        const response = await fetch(gameApiUrl('/api/games/treasure-hunter/clue'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameState }),
+        });
+        const data = await response.json();
+        if (data.clue) {
+          addLog(`ARCHIVE: ${data.clue}`, 'warning');
+          setGameState(prev => prev ? chargeSkill(prev, skill) : null);
+        }
+      } catch (e) {
+        addLog('The archives are silent.', 'error');
+      }
+      return;
+    }
+
     setGameState(prev => {
       if (!prev) return null;
       const { x, y } = prev.playerPos;
-      const newTiles = prev.tiles.map(t => {
-        if (Math.abs(t.x - x) <= 2 && Math.abs(t.y - y) <= 2) {
-          return { ...t, discovered: true };
-        }
-        return t;
-      });
-      addLog("Scouting mission completed. Local map updated.", "info");
-      return {
-        ...prev,
-        resources: { ...prev.resources, gold: prev.resources.gold - 50 },
-        tiles: newTiles
-      };
-    });
-  };
+      const range = skill.range;
+      let message = '';
+      let logType: 'info' | 'success' | 'warning' | 'error' = 'info';
+      let changedTiles = prev.tiles;
 
-  const handleSurvey = () => {
-    if (!gameState || gameState.resources.gold < 100) {
-      addLog("Insufficient gold for terrain survey.", "error");
-      return;
-    }
-
-    const relics = gameState.tiles.filter(t => t.entity === EntityType.RELIC && !t.entityFound);
-    if (relics.length === 0) {
-      addLog("The survey sensor detects no remaining relics on this island.", "warning");
-      return;
-    }
-
-    playPlayerAnimation('scout');
-
-    setGameState(prev => {
-      if (!prev) return null;
-      // Just mark one as discovered for the user as a "hint"
-      const nearest = relics[0]; 
-      const newTiles = prev.tiles.map(t => {
-        if (t.id === nearest.id) return { ...t, discovered: true };
-        return t;
-      });
-      addLog("Survey complete: A relic signal has been triangulated.", "success");
-      return {
-        ...prev,
-        resources: { ...prev.resources, gold: prev.resources.gold - 100 },
-        tiles: newTiles
-      };
-    });
-  };
-
-  const handleGetClue = async () => {
-    if (!gameState || gameState.resources.gold < 25) {
-      addLog("The archives require an offering of gold (25) to speak.", "error");
-      return;
-    }
-
-    addLog("Consulting the ancient archives...", "info");
-    playPlayerAnimation('scout');
-    try {
-      const response = await fetch(gameApiUrl('/api/games/treasure-hunter/clue'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameState }),
-      });
-      const data = await response.json();
-      if (data.clue) {
-        addLog(`ARCHIVE: ${data.clue}`, 'warning');
-        setGameState(prev => prev ? { ...prev, resources: { ...prev.resources, gold: prev.resources.gold - 25 } } : null);
+      if (skill.id === 'scout_area') {
+        changedTiles = prev.tiles.map(t => {
+          if (Math.abs(t.x - x) <= range && Math.abs(t.y - y) <= range) {
+            return { ...t, discovered: true };
+          }
+          return t;
+        });
+        message = 'Scouting complete. Local map updated.';
       }
-    } catch (e) {
-      addLog("The spirits are silent...", "error");
-    }
-  };
 
+      if (skill.id === 'relic_survey') {
+        const nearest = prev.tiles.find(t => t.entity === EntityType.RELIC && !t.entityFound);
+        changedTiles = prev.tiles.map(t => {
+          if (nearest && t.id === nearest.id) return { ...t, discovered: true };
+          return t;
+        });
+        message = 'Relic signal triangulated.';
+        logType = 'success';
+      }
+
+      if (skill.id === 'trap_ward') {
+        let trapsRevealed = 0;
+        changedTiles = prev.tiles.map(t => {
+          const inRange = Math.abs(t.x - x) <= range && Math.abs(t.y - y) <= range;
+          if (inRange && t.entity === EntityType.TRAP && !t.entityFound) {
+            trapsRevealed += 1;
+            return { ...t, discovered: true, entityFound: true };
+          }
+          return t;
+        });
+        message = trapsRevealed > 0 ? `Ward exposed ${trapsRevealed} nearby trap${trapsRevealed === 1 ? '' : 's'}.` : 'Ward held. No nearby traps detected.';
+        logType = trapsRevealed > 0 ? 'success' : 'info';
+      }
+
+      if (message) addLog(message, logType);
+      return {
+        ...chargeSkill(prev, skill),
+        tiles: changedTiles,
+      };
+    });
+  };
   const handleEndTurn = () => {
     if (!gameState) return;
     setGameState(prev => {
@@ -540,7 +558,8 @@ export default function App() {
       return {
         ...prev,
         stamina: recoveredStamina,
-        stats: { ...prev.stats, daysElapsed: prev.stats.daysElapsed + 1 }
+        stats: { ...prev.stats, daysElapsed: prev.stats.daysElapsed + 1 },
+        skillCooldowns: tickSkillCooldowns(prev.skillCooldowns)
       };
     });
   };
@@ -683,39 +702,35 @@ export default function App() {
             </div>
           </section>
 
-          <SidebarSection title="Field Gear">
+          <SidebarSection title={`${activeCharacter.label} Skills`}>
             <div className="grid grid-cols-2 gap-3 text-white">
-              <button 
-                onClick={handleScout}
-                className="flex flex-col items-center p-3 bg-slate-800 border border-slate-700 rounded hover:border-amber-500/50 hover:bg-slate-700/50 group transition-all shadow-lg active:scale-95"
-              >
-                <Telescope size={18} className="text-slate-500 group-hover:text-amber-500 mb-2 transition-colors" />
-                <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 group-hover:text-slate-200">Scout</span>
-                <span className="text-[10px] text-amber-500 font-mono mt-1">$50</span>
-              </button>
-              <button 
-                onClick={handleSurvey}
-                className="flex flex-col items-center p-3 bg-slate-800 border border-slate-700 rounded hover:border-amber-500/50 hover:bg-slate-700/50 group transition-all shadow-lg active:scale-95"
-              >
-                <Compass size={18} className="text-slate-500 group-hover:text-amber-500 mb-2 transition-colors" />
-                <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 group-hover:text-slate-200">Survey</span>
-                <span className="text-[10px] text-amber-500 font-mono mt-1">$100</span>
-              </button>
+              {activeCharacter.skills.map((skill) => {
+                const availability = gameState ? canUseCharacterSkill(skill, gameState) : { canUse: false };
+                const Icon = getSkillIcon(skill.id);
+                const cooldown = gameState?.skillCooldowns?.[skill.id] ?? 0;
+
+                return (
+                  <button
+                    key={skill.id}
+                    onClick={() => handleUseSkill(skill)}
+                    disabled={!availability.canUse}
+                    title={availability.reason || skill.description}
+                    className={cn(
+                      "flex min-h-24 flex-col items-center justify-between p-3 bg-slate-800 border border-slate-700 rounded group transition-all shadow-lg active:scale-95",
+                      availability.canUse
+                        ? "hover:border-amber-500/50 hover:bg-slate-700/50"
+                        : "opacity-55 cursor-not-allowed"
+                    )}
+                  >
+                    <Icon size={18} className="text-slate-500 group-hover:text-amber-500 transition-colors" />
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 group-hover:text-slate-200 text-center leading-tight">{skill.label}</span>
+                    <span className="text-[9px] text-slate-500 text-center leading-tight line-clamp-2">{skill.description}</span>
+                    <span className="text-[10px] text-amber-500 font-mono">{cooldown > 0 ? `${cooldown}d` : getSkillCostLabel(skill.cost)}</span>
+                  </button>
+                );
+              })}
             </div>
           </SidebarSection>
-
-          <section className="mt-auto space-y-4">
-            <button 
-              onClick={handleGetClue}
-              className="w-full flex items-center justify-center gap-3 p-4 bg-purple-900/40 border border-purple-500/30 rounded-lg group hover:bg-purple-800/50 transition-all shadow-xl active:scale-95"
-            >
-              <Sparkles size={20} className="text-purple-400 group-hover:animate-spin-slow" />
-              <div className="flex flex-col items-start">
-                <span className="text-[10px] items-start text-purple-300 font-bold uppercase tracking-widest">Ancient Archives</span>
-                <span className="text-[9px] text-purple-400 font-mono italic">Seek a clue ($25)</span>
-              </div>
-            </button>
-          </section>
         </aside>
 
         {/* Map Visualization */}
@@ -791,6 +806,19 @@ export default function App() {
   );
 }
 
+function getSkillIcon(skillId: CharacterSkill['id']) {
+  switch (skillId) {
+    case 'scout_area':
+      return Telescope;
+    case 'relic_survey':
+      return Compass;
+    case 'trap_ward':
+      return Shield;
+    case 'archive_clue':
+    default:
+      return Sparkles;
+  }
+}
 interface TileComponentProps {
   tile: Tile;
   isCurrent: boolean;
@@ -936,10 +964,10 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, playerAn
           >
             <div className="relative h-[118%] w-[118%]">
               <SpriteBox
-                spriteBox={playerSpriteBoxes[playerAnimation]}
-                seed={`player:mage:${playerAnimation}`}
+                spriteBox={activeCharacter.spriteBoxes[playerAnimation]}
+                seed={`player:${activeCharacter.id}:${playerAnimation}`}
                 elapsedMs={spriteClockMs}
-                alt="Mage"
+                alt={activeCharacter.label}
                 imageClassName={cn(
                   "object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.65)] transition-transform duration-150",
                   playerFacing === 'left' && "-scale-x-100"

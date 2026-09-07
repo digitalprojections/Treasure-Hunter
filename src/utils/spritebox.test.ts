@@ -53,3 +53,18 @@ test('horizontal facing follows lateral movement and persists during vertical mo
   assert.equal(getHorizontalFacingAfterMove('left', 4, 4), 'left');
   assert.equal(getHorizontalFacingAfterMove('right', 4, 4), 'right');
 });
+
+test('short character action loop advances through every supplied frame', () => {
+  const spriteBox = createLooperSpriteBox('hero.mage.hit', 'Mage hit', [
+    createSpriteAsset('/hit_001.png', 'heroes/mage/hit_001'),
+    createSpriteAsset('/hit_002.png', 'heroes/mage/hit_002'),
+    createSpriteAsset('/hit_003.png', 'heroes/mage/hit_003'),
+    createSpriteAsset('/hit_004.png', 'heroes/mage/hit_004'),
+  ], 150);
+
+  assert.equal(resolveSpriteBoxAsset(spriteBox, 'ignored', 0).name, 'heroes/mage/hit_001');
+  assert.equal(resolveSpriteBoxAsset(spriteBox, 'ignored', 150).name, 'heroes/mage/hit_002');
+  assert.equal(resolveSpriteBoxAsset(spriteBox, 'ignored', 300).name, 'heroes/mage/hit_003');
+  assert.equal(resolveSpriteBoxAsset(spriteBox, 'ignored', 450).name, 'heroes/mage/hit_004');
+  assert.equal(resolveSpriteBoxAsset(spriteBox, 'ignored', 600).name, 'heroes/mage/hit_001');
+});

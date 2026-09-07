@@ -6,13 +6,30 @@ import engineerHero from '../../assets/heroes/engineer/engineer.png';
 import engineerHeroCutout from '../../assets/heroes/engineer/bg_removed__engineer.png';
 import explorerHero from '../../assets/heroes/explorer/explorer.png';
 import explorerHeroCutout from '../../assets/heroes/explorer/bg_removed__explorer_.png';
-import mageFrame1 from '../../assets/heroes/mage/Sprite_Animation_centered_001.png';
-import mageFrame2 from '../../assets/heroes/mage/Sprite_Animation_centered_002.png';
-import mageFrame3 from '../../assets/heroes/mage/Sprite_Animation_centered_003.png';
-import mageFrame4 from '../../assets/heroes/mage/Sprite_Animation_centered_004.png';
-import mageFrame5 from '../../assets/heroes/mage/Sprite_Animation_centered_005.png';
-import mageFrame6 from '../../assets/heroes/mage/Sprite_Animation_centered_006.png';
-import mageFrame7 from '../../assets/heroes/mage/Sprite_Animation_centered_007.png';
+import mageWalkFrame1 from '../../assets/heroes/mage/walk/walk_001.png';
+import mageWalkFrame2 from '../../assets/heroes/mage/walk/walk_002.png';
+import mageWalkFrame3 from '../../assets/heroes/mage/walk/walk_003.png';
+import mageWalkFrame4 from '../../assets/heroes/mage/walk/walk_004.png';
+import mageWalkFrame5 from '../../assets/heroes/mage/walk/walk_005.png';
+import mageWalkFrame6 from '../../assets/heroes/mage/walk/walk_006.png';
+import mageWalkFrame7 from '../../assets/heroes/mage/walk/walk_007.png';
+import mageWalkFrame8 from '../../assets/heroes/mage/walk/walk_008.png';
+import mageScoutFrame1 from '../../assets/heroes/mage/scout/scout_001.png';
+import mageScoutFrame2 from '../../assets/heroes/mage/scout/scout_002.png';
+import mageScoutFrame3 from '../../assets/heroes/mage/scout/scout_003.png';
+import mageScoutFrame4 from '../../assets/heroes/mage/scout/scout_004.png';
+import mageScoutFrame5 from '../../assets/heroes/mage/scout/scout_005.png';
+import mageScoutFrame6 from '../../assets/heroes/mage/scout/scout_006.png';
+import mageScoutFrame7 from '../../assets/heroes/mage/scout/scout_007.png';
+import mageHitFrame1 from '../../assets/heroes/mage/hit/hit_001.png';
+import mageHitFrame2 from '../../assets/heroes/mage/hit/hit_002.png';
+import mageHitFrame3 from '../../assets/heroes/mage/hit/hit_003.png';
+import mageHitFrame4 from '../../assets/heroes/mage/hit/hit_004.png';
+import mageCollectFrame1 from '../../assets/heroes/mage/collect/collect_001.png';
+import mageCollectFrame2 from '../../assets/heroes/mage/collect/collect_002.png';
+import mageCollectFrame3 from '../../assets/heroes/mage/collect/collect_003.png';
+import mageCollectFrame4 from '../../assets/heroes/mage/collect/collect_004.png';
+import mageCollectFrame5 from '../../assets/heroes/mage/collect/collect_005.png';
 import scoutHero from '../../assets/heroes/scout/scout.png';
 import scoutHeroCutout from '../../assets/heroes/scout/bg_removed__scout.png';
 import soldierHero from '../../assets/heroes/soldier/soldier.png';
@@ -102,7 +119,7 @@ export const heroAssets = {
   archer: archerHero,
   engineer: engineerHero,
   explorer: explorerHero,
-  mage: mageFrame1,
+  mage: mageWalkFrame1,
   scout: scoutHero,
   soldier: soldierHero,
 } as const;
@@ -111,20 +128,45 @@ export const heroCutoutAssets = {
   archer: archerHeroCutout,
   engineer: engineerHeroCutout,
   explorer: explorerHeroCutout,
-  mage: mageFrame1,
+  mage: mageWalkFrame1,
   scout: scoutHeroCutout,
   soldier: soldierHeroCutout,
 } as const;
 
-export const mageAnimationAssets = [
-  mageFrame1,
-  mageFrame2,
-  mageFrame3,
-  mageFrame4,
-  mageFrame5,
-  mageFrame6,
-  mageFrame7,
-] as const;
+export const mageAnimationAssets = {
+  walk: [
+    mageWalkFrame1,
+    mageWalkFrame2,
+    mageWalkFrame3,
+    mageWalkFrame4,
+    mageWalkFrame5,
+    mageWalkFrame6,
+    mageWalkFrame7,
+    mageWalkFrame8,
+  ],
+  scout: [
+    mageScoutFrame1,
+    mageScoutFrame2,
+    mageScoutFrame3,
+    mageScoutFrame4,
+    mageScoutFrame5,
+    mageScoutFrame6,
+    mageScoutFrame7,
+  ],
+  hit: [
+    mageHitFrame1,
+    mageHitFrame2,
+    mageHitFrame3,
+    mageHitFrame4,
+  ],
+  collect: [
+    mageCollectFrame1,
+    mageCollectFrame2,
+    mageCollectFrame3,
+    mageCollectFrame4,
+    mageCollectFrame5,
+  ],
+} as const;
 
 export const enemyAssets = {
   goblin: goblinEnemy,

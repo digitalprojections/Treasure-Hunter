@@ -106,5 +106,6 @@ export interface GameState {
   maxStamina: number;
   stats: PlayerStats;
   isGameOver: boolean;
+  skillCooldowns?: Record<string, number>;
   message?: string;
 }
