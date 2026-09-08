@@ -885,6 +885,15 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
   const tileLabel = tile.type.replace('_', ' ');
   const baseLabel = tile.visual && !entitySpriteBox ? tile.visual.label : tileLabel;
   const edgeClassName = terrain?.exposedEdges.map((edge) => `terrain-edge-${edge}`);
+  const isWaterTerrain = tile.type === TileType.WATER || tile.type === TileType.DEEP_WATER;
+  const coastClassName = isWaterTerrain && terrain?.coastEdges.length
+    ? [
+      'terrain-water-coast',
+      ...terrain.coastEdges.map((edge) => `terrain-water-coast-${edge}`),
+    ]
+    : isWaterTerrain
+      ? ['terrain-water-open']
+      : undefined;
 
   return (
     <motion.div 
@@ -934,9 +943,11 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
           "terrain-tile absolute inset-0 z-0",
           getTileColor(tile.type),
           `terrain-${tile.type}`,
-          edgeClassName
+          edgeClassName,
+          coastClassName
         )}
         data-terrain-variant={terrain?.variantKey}
+        data-coast-edges={terrain?.coastEdges.join(' ')}
       >
         {visualSpriteBox && !entitySpriteBox ? (
           <SpriteBox

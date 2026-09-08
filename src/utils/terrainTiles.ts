@@ -7,6 +7,7 @@ export interface TerrainTileClassification {
   type: TileType;
   joins: Record<CardinalDirection, boolean>;
   exposedEdges: CardinalDirection[];
+  coastEdges: CardinalDirection[];
   joinMask: TerrainJoinMask;
   variantKey: string;
 }
@@ -45,6 +46,7 @@ const directionOffsets: Record<CardinalDirection, { dx: number; dy: number }> = 
 };
 
 const directions: CardinalDirection[] = ['north', 'east', 'south', 'west'];
+const landTileTypes = new Set<TileType>([TileType.SAND, TileType.GRASS, TileType.FOREST, TileType.MOUNTAIN]);
 
 export function getMinimumTerrainTileSetSize() {
   return MINIMUM_TERRAIN_VARIANT_KEYS.length;
@@ -63,6 +65,7 @@ export function classifyTerrainTile(tile: Tile, tiles: readonly Tile[]): Terrain
     south: false,
     west: false,
   };
+  const coastEdges: CardinalDirection[] = [];
 
   for (const direction of directions) {
     const offset = directionOffsets[direction];
@@ -73,12 +76,16 @@ export function classifyTerrainTile(tile: Tile, tiles: readonly Tile[]): Terrain
     if (joinsTerrain) {
       joinMask = (joinMask | directionBits[direction]) as TerrainJoinMask;
     }
+    if ((tile.type === TileType.WATER || tile.type === TileType.DEEP_WATER) && neighbor && landTileTypes.has(neighbor.type)) {
+      coastEdges.push(direction);
+    }
   }
 
   return {
     type: tile.type,
     joins,
     exposedEdges: directions.filter((direction) => !joins[direction]),
+    coastEdges,
     joinMask,
     variantKey: getTerrainVariantKey(joinMask),
   };

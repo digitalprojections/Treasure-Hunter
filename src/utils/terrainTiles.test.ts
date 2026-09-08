@@ -56,6 +56,32 @@ test('does not join diagonals or different terrain themes', () => {
   assert.deepEqual(classification.exposedEdges, ['east', 'south', 'west']);
 });
 
+test('classifies water coast edges only where water touches land', () => {
+  const tiles = [
+    tile(1, 1, TileType.WATER),
+    tile(1, 0, TileType.DEEP_WATER),
+    tile(2, 1, TileType.SAND),
+    tile(1, 2, TileType.GRASS),
+    tile(0, 1, TileType.WATER),
+  ];
+
+  const classification = classifyTerrainTile(tiles[0], tiles);
+
+  assert.deepEqual(classification.coastEdges, ['east', 'south']);
+});
+
+test('does not mark open water or map boundaries as coast', () => {
+  const tiles = [
+    tile(0, 0, TileType.WATER),
+    tile(1, 0, TileType.WATER),
+    tile(0, 1, TileType.DEEP_WATER),
+  ];
+
+  const classification = classifyTerrainTile(tiles[0], tiles);
+
+  assert.deepEqual(classification.coastEdges, []);
+});
+
 test('classifies a complete tile map by stable tile id', () => {
   const classifications = classifyTerrainTiles([
     tile(0, 0, TileType.SAND),

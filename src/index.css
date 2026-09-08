@@ -81,30 +81,20 @@ body,
 .terrain-water,
 .terrain-deep_water {
   --terrain-edge-color: rgba(205, 166, 83, 0.42);
-  background:
-    radial-gradient(circle at 30% 22%, rgba(91, 199, 214, 0.22), transparent 28%),
-    linear-gradient(135deg, rgb(8, 86, 113), rgb(9, 128, 144) 45%, rgb(4, 63, 101));
-}
-
-.terrain-water::after,
-.terrain-deep_water::after {
-  background:
-    repeating-linear-gradient(160deg, rgba(232, 252, 255, 0.18) 0 1px, transparent 1px 13px),
-    repeating-linear-gradient(25deg, transparent 0 9px, rgba(195, 239, 242, 0.12) 9px 10px, transparent 10px 22px);
-  mix-blend-mode: screen;
-  opacity: 0.64;
 }
 
 .terrain-deep_water {
   --terrain-edge-color: rgba(9, 36, 63, 0.56);
-  background:
-    radial-gradient(circle at 65% 40%, rgba(48, 139, 169, 0.16), transparent 30%),
-    linear-gradient(135deg, rgb(4, 37, 73), rgb(6, 73, 107) 48%, rgb(2, 28, 57));
 }
 
-.terrain-water .terrain-texture,
-.terrain-deep_water .terrain-texture {
-  opacity: 0;
+.terrain-water-open .terrain-texture,
+.terrain-deep_water.terrain-water-open .terrain-texture {
+  transform: scale(1.55) translate(8%, -18%);
+  transform-origin: center;
+}
+
+.terrain-water-coast .terrain-texture {
+  transform-origin: center;
 }
 
 .terrain-sand {
