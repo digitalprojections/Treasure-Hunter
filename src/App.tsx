@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Trophy, 
@@ -28,6 +28,7 @@ import { activeCharacter } from './data/characters';
 import { SpriteBox } from './SpriteBox';
 import { CharacterAnimationState, getHorizontalFacingAfterMove, HorizontalFacing, SpriteBoxModule } from './utils/spritebox';
 import { canUseCharacterSkill, CharacterSkill, getSkillCostLabel, spendSkillCost, startSkillCooldown, tickSkillCooldowns } from './utils/characterSkills';
+import { classifyTerrainTiles, TerrainTileClassification } from './utils/terrainTiles';
 import { cn } from './utils/styles';
 import confetti from 'canvas-confetti';
 
@@ -572,6 +573,11 @@ export default function App() {
     }
   };
 
+  const terrainClassifications = useMemo(
+    () => gameState ? classifyTerrainTiles(gameState.tiles) : new Map<string, TerrainTileClassification>(),
+    [gameState?.tiles],
+  );
+
   if (loading) return <div className="flex items-center justify-center h-[100dvh] bg-[#0F172A] text-slate-400 font-mono text-xs tracking-widest uppercase animate-pulse">Initializing Expedition Data...</div>;
 
   return (
@@ -751,6 +757,7 @@ export default function App() {
               <TileComponent 
                 key={tile.id} 
                 tile={tile} 
+                terrain={terrainClassifications.get(tile.id)}
                 isCurrent={gameState.playerPos.x === tile.x && gameState.playerPos.y === tile.y}
                 playerAnimation={playerAnimation}
                 playerFacing={playerFacing}
@@ -821,6 +828,7 @@ function getSkillIcon(skillId: CharacterSkill['id']) {
 }
 interface TileComponentProps {
   tile: Tile;
+  terrain?: TerrainTileClassification;
   isCurrent: boolean;
   playerAnimation: CharacterAnimationState;
   playerFacing: HorizontalFacing;
@@ -856,7 +864,7 @@ function getPlayerAnimationMotion(animation: CharacterAnimationState) {
   }
 }
 
-const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, playerAnimation, playerFacing, spriteClockMs, onClick }) => {
+const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent, playerAnimation, playerFacing, spriteClockMs, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const getTileColor = (type: TileType) => {
     switch (type) {
@@ -876,6 +884,7 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, playerAn
   const baseSpriteBox = visualSpriteBox && !entitySpriteBox ? visualSpriteBox : terrainSpriteBox;
   const tileLabel = tile.type.replace('_', ' ');
   const baseLabel = tile.visual && !entitySpriteBox ? tile.visual.label : tileLabel;
+  const edgeClassName = terrain?.exposedEdges.map((edge) => `terrain-edge-${edge}`);
 
   return (
     <motion.div 
@@ -920,18 +929,37 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, isCurrent, playerAn
         )}
       </AnimatePresence>
 
-      <div className={cn("absolute inset-0 z-0", getTileColor(tile.type))}>
-        <SpriteBox
-          spriteBox={baseSpriteBox}
-          seed={tile.id}
-          elapsedMs={spriteClockMs}
-          alt={baseLabel}
-          className={cn(
-            tile.type === TileType.DEEP_WATER && "brightness-50 saturate-150",
-            tile.type === TileType.WATER && "brightness-75 saturate-125"
-          )}
-          imageClassName="object-fill transition-transform duration-500 group-hover:scale-110"
-        />
+      <div
+        className={cn(
+          "terrain-tile absolute inset-0 z-0",
+          getTileColor(tile.type),
+          `terrain-${tile.type}`,
+          edgeClassName
+        )}
+        data-terrain-variant={terrain?.variantKey}
+      >
+        {visualSpriteBox && !entitySpriteBox ? (
+          <SpriteBox
+            spriteBox={baseSpriteBox}
+            seed={tile.id}
+            elapsedMs={spriteClockMs}
+            alt={baseLabel}
+            imageClassName="object-contain p-[14%] transition-transform duration-500 group-hover:scale-110"
+          />
+        ) : (
+          <SpriteBox
+            spriteBox={terrainSpriteBox}
+            seed={tile.id}
+            elapsedMs={spriteClockMs}
+            alt={baseLabel}
+            className={cn(
+              "terrain-texture",
+              tile.type === TileType.DEEP_WATER && "brightness-50 saturate-150",
+              tile.type === TileType.WATER && "brightness-75 saturate-125"
+            )}
+            imageClassName="object-fill transition-transform duration-500 group-hover:scale-110"
+          />
+        )}
         <div className="absolute inset-0 bg-slate-950/10 mix-blend-multiply" />
       </div>
       

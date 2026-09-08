@@ -36,6 +36,93 @@ body,
   border-radius: 999px;
 }
 
+.terrain-tile {
+  --terrain-edge-color: rgba(15, 23, 42, 0.28);
+  --terrain-edge-north: transparent;
+  --terrain-edge-east: transparent;
+  --terrain-edge-south: transparent;
+  --terrain-edge-west: transparent;
+  background-size: cover;
+}
+
+.terrain-tile::before,
+.terrain-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.terrain-tile::before {
+  background:
+    linear-gradient(to bottom, var(--terrain-edge-north), transparent 24%) top / 100% 50% no-repeat,
+    linear-gradient(to left, var(--terrain-edge-east), transparent 24%) right / 50% 100% no-repeat,
+    linear-gradient(to top, var(--terrain-edge-south), transparent 24%) bottom / 100% 50% no-repeat,
+    linear-gradient(to right, var(--terrain-edge-west), transparent 24%) left / 50% 100% no-repeat;
+}
+
+.terrain-edge-north {
+  --terrain-edge-north: var(--terrain-edge-color);
+}
+
+.terrain-edge-east {
+  --terrain-edge-east: var(--terrain-edge-color);
+}
+
+.terrain-edge-south {
+  --terrain-edge-south: var(--terrain-edge-color);
+}
+
+.terrain-edge-west {
+  --terrain-edge-west: var(--terrain-edge-color);
+}
+
+.terrain-water,
+.terrain-deep_water {
+  --terrain-edge-color: rgba(205, 166, 83, 0.42);
+  background:
+    radial-gradient(circle at 30% 22%, rgba(91, 199, 214, 0.22), transparent 28%),
+    linear-gradient(135deg, rgb(8, 86, 113), rgb(9, 128, 144) 45%, rgb(4, 63, 101));
+}
+
+.terrain-water::after,
+.terrain-deep_water::after {
+  background:
+    repeating-linear-gradient(160deg, rgba(232, 252, 255, 0.18) 0 1px, transparent 1px 13px),
+    repeating-linear-gradient(25deg, transparent 0 9px, rgba(195, 239, 242, 0.12) 9px 10px, transparent 10px 22px);
+  mix-blend-mode: screen;
+  opacity: 0.64;
+}
+
+.terrain-deep_water {
+  --terrain-edge-color: rgba(9, 36, 63, 0.56);
+  background:
+    radial-gradient(circle at 65% 40%, rgba(48, 139, 169, 0.16), transparent 30%),
+    linear-gradient(135deg, rgb(4, 37, 73), rgb(6, 73, 107) 48%, rgb(2, 28, 57));
+}
+
+.terrain-water .terrain-texture,
+.terrain-deep_water .terrain-texture {
+  opacity: 0;
+}
+
+.terrain-sand {
+  --terrain-edge-color: rgba(67, 56, 35, 0.22);
+}
+
+.terrain-grass {
+  --terrain-edge-color: rgba(43, 77, 36, 0.24);
+}
+
+.terrain-forest {
+  --terrain-edge-color: rgba(14, 48, 32, 0.34);
+}
+
+.terrain-mountain {
+  --terrain-edge-color: rgba(17, 24, 39, 0.32);
+}
+
 @media (max-width: 1023px) {
   .treasure-map-board {
     --board-size: clamp(170px, min(98vw, calc(100dvh - 21.5rem)), 700px);

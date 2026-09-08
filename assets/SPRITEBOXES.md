@@ -32,6 +32,29 @@ Use code IDs as stable handles for dynamic control:
 
 Do not rename IDs casually; saved gameplay, animation controls, and future editors should address spriteboxes by those IDs.
 
+## Terrain Edge Sets
+
+Each terrain map theme needs 16 cardinal tile variants to avoid baked edge art appearing inside a continuous region. The runtime classifies each tile by same-theme neighbors to the north, east, south, and west, then maps that four-bit result to one of these minimum variants:
+
+- `isolated`
+- `north`
+- `east`
+- `north-east`
+- `south`
+- `north-south`
+- `east-south`
+- `north-east-south`
+- `west`
+- `north-west`
+- `east-west`
+- `north-east-west`
+- `south-west`
+- `north-south-west`
+- `east-south-west`
+- `center`
+
+Future edge artwork should keep those variant keys per terrain theme. Diagonal-only contact is not a join; corners should be represented inside the matching cardinal variant art.
+
 ## Character States
 
 Characters are spritebox sets. Supported states are:
