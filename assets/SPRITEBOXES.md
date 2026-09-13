@@ -66,11 +66,39 @@ Characters are spritebox sets. Supported states are:
 - `hit`
 - `escape`
 
-Place future character frames under a character folder and keep the state in the filename:
+Character animations are discovered automatically from:
 
-- `assets/heroes/explorer/walk_001.png`
-- `assets/heroes/explorer/walk_002.png`
-- `assets/heroes/explorer/collect_001.png`
-- `assets/heroes/explorer/hit_001.png`
+```text
+assets/<domain>/<character>/<state>/<frame>.png
+assets/enemies/goblin/idle/Sprite_Animation_centered_001.png
+assets/enemies/goblin/idle/Sprite_Animation_centered_002.png
+assets/heroes/mage/walk/walk_001.png
+```
 
-The board chooses states from gameplay events; the spritebox only owns asset playback.
+- Domains: `heroes`, `enemies`, and `wildlife`.
+- The character folder supplies the character name; its child folder supplies the animation state.
+- Any positive number of frames is supported, including a single frame. Numeric suffixes determine playback order; padding and consecutive numbering are optional.
+- PNG, WebP, and JPEG frames are supported. Keep frames directly inside the state folder.
+- Add/remove frames, states, or characters and rebuild; no import list or frame count needs editing. Restart development if file watching is disabled.
+- `src/data/characterAnimations.ts` exposes every discovered character and state. Existing enemy/wildlife map visuals automatically use their `idle` animation, with existing static art as fallback.
+- Mage gameplay states use discovered clips while preserving their configured playback speed. Additional state names are registered, but need gameplay events to trigger them; new character names need game rules to spawn them.
+- Run `npm run assets:inspect` to list discovered animations and frame counts.
+
+The board chooses states from gameplay events; the spritebox owns asset playback.
+
+## Terrain layers and encounters
+
+Every tile always renders its terrain image. Objects appear above terrain, the hero above objects, and unexplored tiles remain covered by fog. Consumed objects and defeated enemies are removed from view.
+
+Click an adjacent tile (or focus it and press Enter/Space) to move and interact. Hover text states the action and its cost.
+
+- Movement costs 1 stamina. Gold is reserved for skills and loot; walking does not require gold.
+- Enemies and armed defenses require additional stamina (3–6) and grant gold once (12–28). Insufficient stamina blocks the move without charging anything. Combat resolves on entry.
+- Resource piles and shrines grant their listed supplies once. Forest terrain itself does not grant repeatable resources.
+- Wells, villages, potions, and fish restore stamina once, capped at the hero's maximum.
+- Barricades and gates require wood, stone, or a gem. Clearing them makes the tile passable on later visits without paying again.
+- Signs and wildlife observations reveal nearby tiles once. Bridges, flowers, cacti, and stumps remain scenery.
+- Portals connect to another discovered portal. A lone portal remains inactive.
+- Treasure, relics, ruins, and traps resolve once. The ship stays available after an early visit; collecting all relics reveals it. Successful escape locks movement during the transition.
+
+Rules and costs live in `src/utils/interactions.ts`. Run `npm run test:gameplay` for repeatable interaction checks.

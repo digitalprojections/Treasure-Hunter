@@ -81,6 +81,7 @@ export interface Tile {
   entity?: EntityType;
   entityFound?: boolean;
   visual?: TileVisual;
+  visualConsumed?: boolean;
   discovered: boolean;
 }
 

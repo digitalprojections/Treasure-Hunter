@@ -1,3 +1,4 @@
+import { moveHero, describeInteraction } from './utils/interactions';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -332,127 +333,20 @@ export default function App() {
     };
   }, [user, sharedApiSessionId]);
 
-  // Movement Logic
   const handleMove = (x: number, y: number) => {
-    if (!gameState || gameState.isGameOver) return;
-
-    const dx = Math.abs(x - gameState.playerPos.x);
-    const dy = Math.abs(y - gameState.playerPos.y);
-
-    if (dx > 1 || dy > 1 || (dx === 0 && dy === 0)) return;
-
-    const targetTile = gameState.tiles.find(t => t.x === x && t.y === y);
-    if (!targetTile || targetTile.type === TileType.DEEP_WATER) return;
-
-    if (gameState.resources.gold < 5) {
-      addLog("You need survival supplies (gold) to move!", "error");
-      return;
+    if (!gameState) return;
+    const result = moveHero(gameState, x, y);
+    if (result.message) addLog(result.message, result.tone);
+    if (result.state === gameState) return;
+    setPlayerFacing(current => getHorizontalFacingAfterMove(current, gameState.playerPos.x, result.state.playerPos.x));
+    playPlayerAnimation(result.animation);
+    setGameState(result.state);
+    if (result.achievement) {
+      confetti({ particleCount: 80, spread: 80, origin: { y: 0.6 } });
+      const target = gameState.tiles.find(t => t.x === x && t.y === y)!;
+      awardAchievement(result.achievement, `${gameSessionIdRef.current}:${result.achievement}:${target.id}`, result.message);
+      if (result.achievement === 'island_escape') setTimeout(startNewGame, 3000);
     }
-
-    if (gameState.stamina <= 0) {
-      addLog("You are too exhausted to move! Conclude the day to rest.", "error");
-      return;
-    }
-
-    const targetEntityCanTrigger = targetTile.entity && (!targetTile.entityFound || targetTile.entity === EntityType.EXIT);
-    setPlayerFacing((currentFacing) => getHorizontalFacingAfterMove(currentFacing, gameState.playerPos.x, x));
-    const moveAnimation: CharacterAnimationState = (() => {
-      if (!targetEntityCanTrigger) return 'walk';
-      if (targetTile.entity === EntityType.TRAP) return 'hit';
-      if (targetTile.entity === EntityType.EXIT) {
-        return gameState.stats.relicsCollected >= REQUIRED_RELIC_COUNT ? 'escape' : 'scout';
-      }
-      if (targetTile.entity === EntityType.TREASURE || targetTile.entity === EntityType.RELIC || targetTile.entity === EntityType.RUIN) {
-        return 'collect';
-      }
-      return 'walk';
-    })();
-    playPlayerAnimation(moveAnimation);
-
-    setGameState(prev => {
-      if (!prev) return null;
-
-      const newTiles = prev.tiles.map(t => {
-        if (Math.abs(t.x - x) <= 1 && Math.abs(t.y - y) <= 1) {
-          return { ...t, discovered: true };
-        }
-        return t;
-      });
-
-      let newResources = { ...prev.resources };
-      let newStats = { ...prev.stats };
-      let message = "";
-      let logType: 'info' | 'success' | 'warning' | 'error' = 'info';
-
-      const updatedTiles = newTiles.map(t => {
-        const isTargetEntity = t.x === x && t.y === y && t.entity;
-        const canTriggerEntity = isTargetEntity && (!t.entityFound || t.entity === EntityType.EXIT);
-
-        if (canTriggerEntity) {
-          // Entity logic remains mostly same but could add variance
-          if (t.entity === EntityType.TREASURE) {
-            newResources.gold += Math.floor(Math.random() * 50) + 20;
-            newStats.treasuresFound += 1;
-            message = "Found a buried treasure chest!";
-            logType = 'success';
-            confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
-            awardAchievement('treasure_found', `${gameSessionIdRef.current}:treasure:${newStats.treasuresFound}`, 'finding treasure');
-          } else if (t.entity === EntityType.TRAP) {
-            newResources.gold = Math.max(0, newResources.gold - 40);
-            newStats.trapsTriggered += 1;
-            message = "Triggered a hidden dart trap!";
-            logType = 'error';
-          } else if (t.entity === EntityType.RELIC) {
-            newStats.relicsCollected += 1;
-            message = "Uncovered an Ancient Relic!";
-            logType = 'success';
-            confetti({ particleCount: 100, spread: 100, origin: { y: 0.5 } });
-            awardAchievement('relic_collected', `${gameSessionIdRef.current}:relic:${newStats.relicsCollected}`, 'collecting a relic');
-            
-            // If all relics found, reveal the exit
-            if (newStats.relicsCollected >= REQUIRED_RELIC_COUNT) {
-              message = "All relics collected! The Extraction Point has been signaled. Find the Ship to escape!";
-              logType = 'success';
-            }
-          } else if (t.entity === EntityType.EXIT) {
-            if (newStats.relicsCollected >= REQUIRED_RELIC_COUNT) {
-              message = "Escape successful! You've set sail for a new island.";
-              logType = 'success';
-              confetti({ particleCount: 200, spread: 160, origin: { y: 0.5 } });
-              awardAchievement('island_escape', `${gameSessionIdRef.current}:escape:${newStats.daysElapsed}`, 'escaping the island');
-              // Trigger new game in next frame
-              setTimeout(startNewGame, 3000);
-            } else {
-              message = `The Ship remains docked. You must find all ${REQUIRED_RELIC_COUNT} relics before you can leave.`;
-              logType = 'warning';
-              return t;
-            }
-          } else if (t.entity === EntityType.RUIN) {
-            newResources.stone += 10;
-            message = "Scavenged some stone from old ruins.";
-            logType = 'info';
-          }
-          return { ...t, entityFound: true };
-        }
-        return t;
-      });
-
-      if (message) addLog(message, logType);
-      
-      if (targetTile.type === TileType.FOREST) {
-        newResources.wood += 2;
-        addLog("Gathered some firewood.", "info");
-      }
-
-      return {
-        ...prev,
-        tiles: updatedTiles,
-        playerPos: { x, y },
-        resources: newResources,
-        stamina: prev.stamina - 1,
-        stats: newStats
-      };
-    });
   };
 
   const chargeSkill = (state: GameState, skill: CharacterSkill): GameState => {
@@ -881,9 +775,7 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
   const terrainSpriteBox = tileTerrainSpriteBoxes[tile.type];
   const entitySpriteBox = tile.entity ? entitySpriteBoxes[tile.entity] : undefined;
   const visualSpriteBox = tile.visual ? visualSpriteBoxes[tile.visual.id] : undefined;
-  const baseSpriteBox = visualSpriteBox && !entitySpriteBox ? visualSpriteBox : terrainSpriteBox;
   const tileLabel = tile.type.replace('_', ' ');
-  const baseLabel = tile.visual && !entitySpriteBox ? tile.visual.label : tileLabel;
   const edgeClassName = terrain?.exposedEdges.map((edge) => `terrain-edge-${edge}`);
   const isWaterTerrain = tile.type === TileType.WATER || tile.type === TileType.DEEP_WATER;
   const coastClassName = isWaterTerrain && terrain?.coastEdges.length
@@ -896,7 +788,13 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
       : undefined;
 
   return (
-    <motion.div 
+    <motion.div
+      role="button"
+      tabIndex={0}
+      aria-label={tile.discovered ? `${tileLabel}: ${describeInteraction(tile)}` : 'Explore unknown terrain'}
+      title={tile.discovered ? describeInteraction(tile) : 'Explore unknown terrain'}
+      data-tile-id={tile.id}
+      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick(); } }}
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -915,7 +813,7 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
             className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-slate-700 px-2 py-1 rounded text-[9px] font-bold text-white uppercase tracking-widest whitespace-nowrap shadow-2xl pointer-events-none"
           >
             {tileLabel}
-            {tile.visual && !tile.entity && ` • ${tile.visual.label}`}
+            {tile.visual && !tile.entity && !tile.visualConsumed && ` • ${tile.visual.label}`}
             {tile.entity && tile.entityFound && ` • ${tile.entity}`}
           </motion.div>
         )}
@@ -946,35 +844,29 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
           edgeClassName,
           coastClassName
         )}
+        aria-hidden="true"
         data-terrain-variant={terrain?.variantKey}
         data-coast-edges={terrain?.coastEdges.join(' ')}
       >
-        {visualSpriteBox && !entitySpriteBox ? (
-          <SpriteBox
-            spriteBox={baseSpriteBox}
-            seed={tile.id}
-            elapsedMs={spriteClockMs}
-            alt={baseLabel}
-            imageClassName="object-contain p-[14%] transition-transform duration-500 group-hover:scale-110"
-          />
-        ) : (
-          <SpriteBox
-            spriteBox={terrainSpriteBox}
-            seed={tile.id}
-            elapsedMs={spriteClockMs}
-            alt={baseLabel}
-            className={cn(
-              "terrain-texture",
-              tile.type === TileType.DEEP_WATER && "brightness-50 saturate-150",
-              tile.type === TileType.WATER && "brightness-75 saturate-125"
-            )}
-            imageClassName="object-fill transition-transform duration-500 group-hover:scale-110"
-          />
-        )}
+        <SpriteBox
+          spriteBox={terrainSpriteBox}
+          seed={tile.id}
+          elapsedMs={spriteClockMs}
+          alt={tileLabel}
+          className={cn('terrain-texture', tile.type === TileType.DEEP_WATER && 'brightness-50 saturate-150', tile.type === TileType.WATER && 'brightness-75 saturate-125')}
+          imageClassName="object-fill"
+        />
         <div className="absolute inset-0 bg-slate-950/10 mix-blend-multiply" />
       </div>
       
-      {tile.discovered && entitySpriteBox && (
+      {tile.discovered && visualSpriteBox && !entitySpriteBox && !tile.visualConsumed && (
+        <div data-layer="object" className="absolute inset-0 z-10 p-[10%] pointer-events-none">
+          <SpriteBox spriteBox={visualSpriteBox} seed={tile.id} elapsedMs={spriteClockMs}
+            alt={tile.visual!.label} imageClassName="object-contain drop-shadow-lg" />
+        </div>
+      )}
+
+      {tile.discovered && entitySpriteBox && (!tile.entityFound || tile.entity === EntityType.EXIT) && (
         <motion.div 
           initial={{ scale: 0, opacity: 0, rotate: -20 }}
           animate={{ scale: 1, opacity: 1, rotate: 0 }}

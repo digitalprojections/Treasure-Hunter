@@ -11,7 +11,9 @@
     "lint": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
     "build:treasuremaps": "vite build --base /treasuremaps/",
-    "deploy:treasuremaps": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-treasuremaps.ps1"
+    "deploy:treasuremaps": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-treasuremaps.ps1",
+    "assets:inspect": "tsx scripts/inspect-character-assets.ts",
+    "test:gameplay": "tsx --test src/utils/interactions.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

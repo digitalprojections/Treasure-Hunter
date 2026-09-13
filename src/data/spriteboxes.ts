@@ -1,3 +1,4 @@
+import { characterAnimations } from './characterAnimations';
 import { EntityType, TileType, TileVisualId } from '../types';
 import {
   CharacterSpriteBoxSet,
@@ -139,6 +140,15 @@ export const visualSpriteBoxes: Record<TileVisualId, SpriteBoxModule> = {
   woodenGate: staticBox('visual.wooden_gate', 'Wooden Gate', [[barrierAssets.woodenGate, 'barriers/wooden_gate']]),
 };
 
+// Existing map characters automatically use their discovered idle animation.
+for (const domain of ['enemies', 'wildlife']) {
+  for (const [name, states] of Object.entries(characterAnimations[domain] ?? {})) {
+    if (states.idle && Object.hasOwn(visualSpriteBoxes, name)) {
+      visualSpriteBoxes[name as TileVisualId] = { ...states.idle, id: `visual.${name}`, label: visualSpriteBoxes[name as TileVisualId].label };
+    }
+  }
+}
+
 export const symbolSpriteBoxes = {
   fog: staticBox('symbol.fog', 'Fog', [[symbolAssets.fog, 'symbols/fog']]),
 } as const;
@@ -151,3 +161,13 @@ export const playerSpriteBoxes: CharacterSpriteBoxSet = {
   hit: looperBox('hero.mage.hit', 'Mage hit', animationEntries(mageAnimationAssets.hit, 'heroes/mage/hit'), 150),
   escape: looperBox('hero.mage.escape', 'Mage escaping', animationEntries(mageAnimationAssets.walk, 'heroes/mage/escape'), 100),
 };
+
+// Folder states override configured defaults while retaining gameplay timing and IDs.
+for (const [state, clip] of Object.entries(characterAnimations.heroes?.mage ?? {})) {
+  if (Object.hasOwn(playerSpriteBoxes, state)) {
+    const key = state as keyof CharacterSpriteBoxSet;
+    const previous = playerSpriteBoxes[key];
+    playerSpriteBoxes[key] = { ...clip, id: previous.id, label: previous.label,
+      frameMs: previous.kind === 'looper' ? previous.frameMs : clip.frameMs };
+  }
+}
