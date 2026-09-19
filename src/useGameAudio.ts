@@ -89,7 +89,7 @@ export function useGameAudio(scene: MusicScene, islandNumber = 1) {
     if (!source) return;
     lastCue.current[event] = now;
     const priority = event === 'victory' ? 4 : event === 'relic' ? 3 : event === 'discovery' ? 2 : 1;
-    music.current?.playCue(source, priority, event !== 'relic');
+    music.current?.playCue(source, priority);
   }, []);
   return { volumes, setVolumes, playSound, playMusicEvent, musicStatus };
 }

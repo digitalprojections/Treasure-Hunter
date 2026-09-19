@@ -30,7 +30,7 @@ test('loading a cue does not duck the audible background', t => {
   tick(1000);
   assert.equal(bed.volume, 0.5);
 });
-test('cue entry fades in and background recovers before its faded tail ends', t => {
+test('cue fades in and out while the background stays at its selected volume', t => {
   const { player, bed, latest, tick } = setup(t);
   player.playCue('combat');
   const cue = latest('combat');
@@ -39,10 +39,11 @@ test('cue entry fades in and background recovers before its faded tail ends', t 
   tick(100);
   assert.ok(cue.volume > 0 && cue.volume < 0.5);
   tick(1000);
-  assert.ok(bed.volume < 0.2);
+  assert.equal(bed.volume, 0.5);
   cue.currentTime = cue.duration - 0.7;
   tick(25); tick(600);
-  assert.ok(bed.volume > 0.45, 'restore the bed while the event is fading out');
+  assert.equal(bed.volume, 0.5);
+  assert.ok(cue.volume < 0.5);
 });
 test('island track changes keep the old track until the new track is playing, then overlap', t => {
   const { player, bed, latest, tick } = setup(t);
@@ -75,12 +76,14 @@ test('loop boundaries overlap before the source reaches its end', t => {
   assert.ok(audios.length < 5);
 });
 test('higher priority cues overlap instead of abruptly stopping a playing cue', t => {
-  const { player, latest, tick } = setup(t);
+  const { player, bed, latest, tick } = setup(t);
   player.playCue('combat', 1); const old = latest('combat'); old.playing(); tick(1000);
   player.playCue('victory', 4); const next = latest('victory');
   assert.equal(old.paused, false);
   next.playing(); tick(100);
   assert.ok(old.volume > 0 && next.volume > 0);
+  assert.equal(bed.volume, 0.5);
+  assert.equal(bed.paused, false);
   tick(1000); assert.equal(old.paused, true);
 });
 test('mute during a transition silences every layer and cancels stale playback callbacks', t => {
@@ -95,3 +98,29 @@ test('mute during a transition silences every layer and cancels stale playback c
   }
   assert.equal(bed.paused, true);
 });
+
+for (const event of ['combat', 'discovery', 'relic', 'rest', 'setback', 'victory']) {
+  test(`${event} overlays leave main-loop volume and playback untouched throughout the cue`, t => {
+    const { player, bed, latest, tick } = setup(t);
+    bed.currentTime = 8;
+    const unchanged = () => {
+      assert.equal(bed.volume, 0.5);
+      assert.equal(bed.paused, false);
+      assert.equal(bed.currentTime, 8);
+      assert.equal(bed.src, 'a');
+    };
+    player.playCue(event);
+    tick(1000); unchanged();
+    const cue = latest(event);
+    cue.playing();
+    for (const ms of [100, 200, 1000]) { tick(ms); unchanged(); }
+    cue.currentTime = cue.duration - 0.7;
+    for (const ms of [25, 300, 400]) { tick(ms); unchanged(); }
+    cue.onended!();
+    tick(1000); unchanged();
+    player.playCue(event);
+    latest(event).playing(); tick(300); unchanged();
+    latest(event).onerror!(); tick(1000); unchanged();
+  });
+}
+

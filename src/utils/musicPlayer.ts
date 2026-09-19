@@ -6,7 +6,6 @@ type Voice = Level & { audio: HTMLAudioElement; kind: 'bed' | 'cue'; started: bo
 const CROSSFADE_MS = 1000;
 const CUE_ATTACK_MS = 240;
 const CUE_RELEASE_MS = 700;
-const DUCK_GAIN = 0.3;
 
 // Interpolate power, not amplitude, so overlapping unrelated passages do not dip.
 function advance(level: Level, now: number) {
@@ -24,9 +23,7 @@ export class MusicPlayer {
   private standby?: Voice;
   private cue?: Voice;
   private cuePriority = 0;
-  private cueDucks = true;
   private voices = new Set<Voice>();
-  private duck: Level = { gain: 1 };
   private failed = new Set<number>();
   private index = 0;
   private volume = 0;
@@ -152,7 +149,7 @@ export class MusicPlayer {
 
   private applyVolumes() {
     for (const voice of this.voices) {
-      voice.audio.volume = Math.min(1, Math.max(0, this.volume * voice.gain * (voice.kind === 'bed' ? this.duck.gain : 1)));
+      voice.audio.volume = Math.min(1, Math.max(0, this.volume * voice.gain));
     }
   }
 
@@ -163,12 +160,10 @@ export class MusicPlayer {
       const remaining = cue.audio.duration - cue.audio.currentTime;
       if (remaining <= CUE_RELEASE_MS / 1000) {
         cue.releasing = true;
-        // Generated cues already fade to silence. Recover the bed before that tail.
-        this.ramp(this.duck, 1, Math.max(25, remaining * 1000 - 100));
+        // Fade the overlay tail without touching the background loop.
         this.ramp(cue, 0, Math.max(25, remaining * 1000));
       }
     }
-    advance(this.duck, now);
     for (const voice of this.voices) advance(voice, now);
     this.applyVolumes();
     const bed = this.bed;
@@ -204,21 +199,19 @@ export class MusicPlayer {
     }
   }
 
-  playCue(source: string, priority = 1, duckBackground = true) {
+  playCue(source: string, priority = 1) {
     if (this.disposed || !this.volume || !this.running || (this.cue && priority <= this.cuePriority)) return;
     // A superseded loading cue never needs a fade; a playing cue remains until its replacement starts.
     if (this.cue && !this.cue.started) this.remove(this.cue);
     const cue = this.makeVoice(source, 'cue');
     this.cue = cue;
     this.cuePriority = priority;
-    this.cueDucks = duckBackground;
     cue.audio.loop = false;
     cue.audio.onplaying = () => {
       if (!this.running || this.cue !== cue || cue.started || !this.voices.has(cue)) return;
       cue.started = true;
       for (const other of this.voices) if (other.kind === 'cue' && other !== cue) this.retire(other, CUE_ATTACK_MS);
       this.ramp(cue, 1, CUE_ATTACK_MS);
-      this.ramp(this.duck, this.cueDucks ? DUCK_GAIN : 1, CUE_ATTACK_MS);
       this.status(`Event: ${decodeURIComponent(source.split('/').slice(-2).join('/')).replace(/\.[^.]+$/, '')}`);
     };
     cue.audio.onended = () => this.finishCue(cue);
@@ -232,7 +225,6 @@ export class MusicPlayer {
     if (this.cue !== cue) return;
     this.cue = undefined;
     this.cuePriority = 0;
-    this.ramp(this.duck, 1, CUE_ATTACK_MS);
     this.showTrack();
   }
 
@@ -255,7 +247,6 @@ export class MusicPlayer {
     }
     this.cue = undefined;
     this.cuePriority = 0;
-    this.duck = { gain: 1 };
     this.applyVolumes();
     this.status('Music paused');
   }

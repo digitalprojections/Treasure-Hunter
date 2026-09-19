@@ -16,6 +16,7 @@ button.onclick = async () => {
   const audios: HTMLAudioElement[] = [], started: string[] = [], errors: string[] = [];
   let phase = 'startup', silentMs = 0, longestSilenceMs = 0, rmsMin = Infinity, measurements = 0;
   const overlaps = new Set<string>();
+  let backgroundVolumeChanges = 0;
   const player = new MusicPlayer(musicTracksForIsland(catalog.loops.exploration, 1), () => {}, () => {
     const audio = new Audio();
     context.createMediaElementSource(audio).connect(analyser);
@@ -37,6 +38,10 @@ button.onclick = async () => {
       rmsMin = Math.min(rmsMin, rms); measurements++;
       silentMs = rms < 0.0001 ? silentMs + 20 : 0;
       longestSilenceMs = Math.max(longestSilenceMs, silentMs);
+      if (phase === 'combat' || phase === 'replacement') {
+        const bed = audios.find(a => a.src.includes('/loops/exploration/') && !a.paused);
+        if (!bed || Math.abs(bed.volume - 0.35) > 0.0001) backgroundVolumeChanges++;
+      }
       const audible = audios.filter(a => !a.paused && a.volume > 0.01);
       if (audible.length >= 2) overlaps.add(phase);
     }, 20);
@@ -45,7 +50,7 @@ button.onclick = async () => {
     first.currentTime = first.duration - 1.3;
     await sleep(2300);
     phase = 'combat';
-    player.playCue(catalog.events.combat[0], 1, true);
+    player.playCue(catalog.events.combat[0], 1);
     await sleep(500);
     const combat = audios.find(a => a.src.includes('/events/combat/'))!;
     await sleep(combat.duration * 1000 + 1500);
@@ -63,12 +68,13 @@ button.onclick = async () => {
     clearInterval(monitor);
     check(started.some(s => s.includes('sunken-02')), 'New island did not select the next track');
     check(['loop', 'combat', 'replacement', 'island'].every(p => overlaps.has(p)), 'Missing overlap coverage');
+    check(backgroundVolumeChanges === 0, 'An event changed the background volume');
     check(errors.length === 0, 'Audio file failed to decode');
     check(longestSilenceMs < 120, 'Detected an audible silence gap');
     player.setVolume(0);
     check(audios.every(a => a.paused && a.volume === 0), 'Mute left an audio layer running');
     output.textContent = JSON.stringify({ result: 'PASS', measurements, longestSilenceMs, minimumRms: rmsMin,
-      overlapPhases: [...overlaps], playingEvents: started.length, decodeErrors: errors.length, mute: 'PASS' }, null, 2);
+      overlapPhases: [...overlaps], backgroundVolumeChanges, playingEvents: started.length, decodeErrors: errors.length, mute: 'PASS' }, null, 2);
   } catch (error) {
     output.textContent = JSON.stringify({ result: 'FAIL', error: String(error), phase, longestSilenceMs, errors }, null, 2);
   } finally {

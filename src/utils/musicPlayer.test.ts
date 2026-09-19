@@ -18,7 +18,7 @@ function setup(t: TestContext, loops = true) {
 }
 test('overlay cue preserves exploration volume and volume changes preserve fade progress', t => {
   const { player, bed, latest, tick } = setup(t);
-  player.playCue('relic', 3, false);
+  player.playCue('relic', 3);
   const cue = latest('relic'); cue.onplaying(); tick();
   assert.equal(cue.loop, false);
   assert.equal(bed.volume, 0.5);
@@ -65,9 +65,9 @@ test('event priorities prevent stacking, cue failure recovers and pause cancels 
   player.playCue('relic', 3); latest('relic').onplaying(); tick();
   const count = audios.length; player.playCue('combat', 1); assert.equal(audios.length, count);
   player.setVolume(0.4);
-  assert.equal(bed.volume, 0.4 * 0.3);
+  assert.equal(bed.volume, 0.4);
   latest('relic').onerror(); tick(); assert.equal(bed.volume, 0.4);
-  player.playCue('combat', 1, true);
+  player.playCue('combat', 1);
   const stale = latest('combat').onended;
   player.pause(); stale(); tick();
   assert.equal(bed.src, 'a');
@@ -114,7 +114,7 @@ test('completed gameplay cues keep the current island track and playback positio
   const { player, bed, latest, audios, tick } = setup(t);
   bed.currentTime = 8;
   for (const event of ['combat', 'combat', 'discovery', 'relic', 'rest', 'setback', 'victory']) {
-    player.playCue(event, 1, true);
+    player.playCue(event, 1);
     latest(event).onplaying();
     latest(event).onended();
     tick();

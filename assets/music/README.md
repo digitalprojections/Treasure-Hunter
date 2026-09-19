@@ -21,9 +21,9 @@ Refresh development after adding files; production needs a rebuild.
   also applies to the full-track fallback.
 - `events/combat/`, `discovery/`, `relic/`, `setback/`, `rest/`, `victory/`:
   short one-shot phrases for their gameplay events. Ordinary steps and resource
-  pickups use SFX only. Relic cues play once over exploration at its normal
-  volume. Other cues lower the background only once playback starts, then restore it
-  during the last 700 ms of the cue. Higher-priority cues crossfade over lower ones; equal/lower cues never stack.
+  pickups use SFX only. Every cue plays over the main loop at its selected volume.
+  Cues never pause, restart, lower or raise the background. Only the overlays
+  fade in and out. Higher-priority cues crossfade over lower ones; equal/lower cues never stack.
   Cues follow music volume, not effects volume. Hidden tabs stop cues and pause loops.
 - Full tracks remain untouched and serve as fallback when no exploration loops exist.
 
