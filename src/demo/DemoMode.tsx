@@ -44,11 +44,11 @@ export default function DemoMode(){
   const exitUrl=location.pathname;
   return <main className="demo-mode" data-demo-playing={playing} data-demo-beat={sample.index}>
     <audio ref={audio} src={themeUrl} preload="auto" loop={loop} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onError={()=>setError('The theme song could not load. Reload to try again.')} />
-    <canvas ref={canvas} className="demo-canvas" aria-label="Choreographed island expedition synchronized to Sunken Relic Run" />
-    <header className="demo-header"><div><span className="demo-eyebrow">Treasure Hunter · cinematic demo</span><h1>Sunken Relic Run</h1></div>
+    <canvas ref={canvas} className="demo-canvas" aria-label="Self-playing island expedition synchronized to Sunken Relic Run" />
+    <header className="demo-header"><div><span className="demo-eyebrow">Treasure Hunter · live autoplay</span><h1>Sunken Relic Run</h1></div>
       <a href={exitUrl} className="demo-icon-button" aria-label="Exit demo"><X size={20}/></a></header>
     <section className="demo-chapter" aria-live="polite"><span className="demo-eyebrow">{sample.relics===3?'Return to the tide':`Relics awakened · ${sample.relics} / 3`}</span><h2>{time>=score.duration-.8?'The island remembers':sample.chapter}</h2></section>
-    {!started&&<div className="demo-intro"><Compass size={38}/><p className="demo-eyebrow">A journey written in rhythm</p><h2>Wake the island.</h2><p>Ancient relics. Arcane battles. One uninterrupted theme.</p><button disabled={!ready} onClick={()=>void play()}><Play size={18}/>{ready?'Begin the journey':'Preparing the island…'}</button></div>}
+    {!started&&<div className="demo-intro"><Compass size={38}/><p className="demo-eyebrow">A journey written in rhythm</p><h2>Wake the island.</h2><p>Enemy swarms. Chain lightning. Relic storms. The expedition plays itself.</p><button disabled={!ready} onClick={()=>void play()}><Play size={18}/>{ready?'Begin the journey':'Preparing the island…'}</button></div>}
     {error&&<p role="alert" className="demo-error">{error}</p>}
     {started&&!playing&&time>=score.duration-.8&&<div className="demo-ending"><h2>Every relic has a story.</h2><button onClick={replay}>Experience it again</button></div>}
     <footer className="demo-controls">

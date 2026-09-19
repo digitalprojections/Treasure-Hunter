@@ -16,6 +16,7 @@ export async function loadDemoImages() {
 }
 export class DemoRenderer {
   private terrain=document.createElement('canvas');
+  private revealAt=level.tiles.map(tile=>level.route.findIndex(p=>Math.hypot(p.x-tile.x,p.y-tile.y)<2.3));
   private camera={x:2.5*TILE,y:14.5*TILE};
   constructor(private images:Map<string,HTMLImageElement>,private cues:DemoCue[]) {
     this.terrain.width=this.terrain.height=18*TILE;
@@ -27,16 +28,18 @@ export class DemoRenderer {
   }
   draw(ctx:CanvasRenderingContext2D,width:number,height:number,time:number,dt:number,reduced:boolean,snap=false){
     const sample=sampleDemo(this.cues,time),hx=(sample.x+.5)*TILE,hy=(sample.y+.5)*TILE;
-    const zoom=Math.min(1.1,Math.max(.72,width/1050));
-    const ease=snap||reduced?1:1-Math.exp(-Math.min(dt,.05)*2.6);
-    this.camera.x+=(hx-this.camera.x)*ease;this.camera.y+=(hy-this.camera.y)*ease;
+    const energy=sample.energy;
+    const zoom=Math.min(1.22,Math.max(.86,width/1000))*(reduced?1:1+Math.sin(time*.38)*.035);
+    const lookX=reduced?0:Math.sin(time*.31)*24,lookY=reduced?0:Math.cos(time*.27)*14;
+    const ease=snap||reduced?1:1-Math.exp(-Math.min(dt,.05)*4.2);
+    this.camera.x+=(hx+lookX-this.camera.x)*ease;this.camera.y+=(hy+lookY-this.camera.y)*ease;
     ctx.fillStyle='#06151e';ctx.fillRect(0,0,width,height);
     ctx.save();ctx.translate(width/2,height*.51);ctx.scale(zoom,zoom);ctx.translate(-this.camera.x,-this.camera.y);
     ctx.drawImage(this.terrain,0,0);
     // Soft unexplored mist recedes along the authored route.
-    for(const tile of level.tiles){
+    for(const [tileIndex,tile] of level.tiles.entries()){
       const distance=Math.hypot(tile.x-sample.x,tile.y-sample.y);
-      const seen=level.route.slice(0,sample.routeIndex+1).some(p=>Math.hypot(p.x-tile.x,p.y-tile.y)<2.3);
+      const seen=this.revealAt[tileIndex]>=0&&this.revealAt[tileIndex]<=sample.routeIndex;
       ctx.fillStyle=`rgba(5,18,27,${seen?.15:Math.min(.88,Math.max(.1,(distance-1.5)*.13))})`;
       ctx.fillRect(tile.x*TILE,tile.y*TILE,TILE+.5,TILE+.5);
       if(!tile.entity && tile.x>1&&tile.y>1&&tile.x<16&&tile.y<16 && (tile.x*13+tile.y*7)%13===0){
@@ -49,7 +52,7 @@ export class DemoRenderer {
     ctx.strokeStyle='#66dbc4';ctx.lineWidth=2;ctx.globalAlpha=.3;ctx.stroke();ctx.globalAlpha=1;
     for(const landmark of level.landmarks){
       const at=level.route.findIndex(p=>p.x===landmark.x&&p.y===landmark.y);
-      const recovered=landmark.entity!==EntityType.EXIT&&sample.routeIndex>=at;
+      const recovered=landmark.entity===EntityType.RELIC?this.cues.some(c=>c.event==='relic'&&c.x===landmark.x&&c.y===landmark.y&&c.time<=time):landmark.entity!==EntityType.EXIT&&sample.routeIndex>=at;
       const x=(landmark.x+.5)*TILE,y=(landmark.y+.5)*TILE;
       if(recovered)continue;
       ctx.save();ctx.translate(x,y);
@@ -64,14 +67,16 @@ export class DemoRenderer {
     // Deterministic beat particles: seeking reconstructs the same scene, with bounded work.
     if(!reduced)for(let j=Math.max(0,sample.index-9);j<=sample.index;j++){
       const cue=this.cues[j],age=time-cue.time;if(age<0||age>2.5)continue;
-      const major=!!cue.event, count=major?64:cue.strength>.65?18:7;
-      const life=major?2.5:1.2;if(age>life)continue;
-      const x=(cue.x+.5)*TILE,y=(cue.y+.5)*TILE;
+      const major=cue.event==='spell'||cue.event==='relic'||cue.event==='escape';
+      const count=major?100:cue.event==='fight'?42:28;
+      const life=major?1.9:1.1;if(age>life)continue;
+      const spread=cue.event==='treasure'?70:0;
+      const x=(cue.x+.5)*TILE+Math.cos(j*2.4)*spread,y=(cue.y+.5)*TILE+Math.sin(j*2.4)*spread;
       const color=cue.event==='relic'||cue.event==='escape'?'#ffe5a4':cue.event==='spell'?'#b5a0ff':cue.event==='fight'?'#ffa36e':'#71e8d0';
       ctx.save();ctx.globalCompositeOperation='lighter';ctx.strokeStyle=color;ctx.fillStyle=color;
-      if(major||j%4===0){ctx.globalAlpha=(1-age/life)*.55;ctx.lineWidth=major?2.5:1;ctx.beginPath();ctx.ellipse(x,y+16,12+age*(major?145:45),6+age*(major?65:23),0,0,Math.PI*2);ctx.stroke();}
+      if(major||j%4===0){ctx.globalAlpha=(1-age/life)*.55;ctx.lineWidth=major?2.5:1;ctx.beginPath();ctx.ellipse(x,y+16,12+age*(major?230:95),6+age*(major?115:46),0,0,Math.PI*2);ctx.stroke();}
       if(major){
-        const radius=55+age*90;
+        const radius=65+age*125;
         ctx.save();ctx.translate(x,y);ctx.scale(1,.58);ctx.rotate(age*.3);
         ctx.globalAlpha=Math.max(0,1-age/life)*.5;ctx.lineWidth=1.5;
         for(let ring=0;ring<2;ring++){
@@ -90,33 +95,60 @@ export class DemoRenderer {
       }
       if(cue.event==='spell'||cue.event==='escape'){
         for(let ray=0;ray<5;ray++){
-          const a=ray*Math.PI*2/5+j,px=x+Math.cos(a)*110,py=y+Math.sin(a)*65;
+          const a=ray*Math.PI*2/5+j,px=x+Math.cos(a)*170,py=y+Math.sin(a)*100;
           const beam=ctx.createLinearGradient(px,py-250,px,py);
           beam.addColorStop(0,'#ad9cff00');beam.addColorStop(1,'#ad9cffaa');
           ctx.globalAlpha=Math.max(0,1-age/life)*.55;ctx.fillStyle=beam;ctx.fillRect(px-5,py-250,10,250);
         }ctx.fillStyle=color;
       }
       for(let k=0;k<count;k++){
-        const angle=k*2.399963+j*.71, speed=(major?100:35)+(k%7)*9;
+        const angle=k*2.399963+j*.71, speed=(major?170:80)+(k%7)*15;
         const px=x+Math.cos(angle)*age*speed,py=y+Math.sin(angle)*age*speed*.55-age*36;
         ctx.globalAlpha=(1-age/life)*(.35+cue.energy*.55);ctx.beginPath();
-        ctx.arc(px,py,major?2.5:1.6,0,Math.PI*2);ctx.fill();
+        if(cue.event==='treasure'){
+          ctx.save();ctx.translate(px,py);ctx.rotate(angle+age*4);ctx.fillRect(-3,-3,6,6);ctx.restore();
+        }else {ctx.arc(px,py,major?3:2,0,Math.PI*2);ctx.fill();}
         if(major&&k%4===0){ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px-Math.cos(angle)*14,py-Math.sin(angle)*7);ctx.stroke();}
       }ctx.restore();
     }
-    const activeEvent=this.cues.slice(Math.max(0,sample.index-4),sample.index+1).reverse().find(c=>c.event&&time-c.time<1.5);
-    if(activeEvent?.event==='fight'){
-      const age=time-activeEvent.time,side=sample.facing==='left'?-1:1;
-      const enemy=['skeleton','wolf','goblin','orc','troll'][Math.floor(sample.index/16)%5] as 'skeleton';
-      ctx.save();ctx.globalAlpha=Math.max(0,1-Math.max(0,age-.8)/.7);
-      this.sprite(ctx,visualSpriteBoxes[enemy],'demo-enemy',age*1000,hx+side*70-36,hy-44,72,72);
-      ctx.strokeStyle='#ffd6a3';ctx.lineWidth=3;ctx.globalAlpha=Math.max(0,1-age);ctx.beginPath();ctx.arc(hx+side*40,hy,40,-1.3+age*4,1.3+age*4);ctx.stroke();ctx.restore();
+    // New enemy squads arrive on accented beats; their charge, hit and defeat coexist.
+    const waves=this.cues.slice(Math.max(0,sample.index-5),sample.index+1).filter(c=>c.event==='fight'&&time-c.time<1.65);
+    for(const wave of waves){
+      const age=time-wave.time,waveIndex=this.cues.indexOf(wave),squad=energy>.75?3:2;
+      const originX=(wave.x+.5)*TILE,originY=(wave.y+.5)*TILE;
+      for(let foe=0;foe<squad;foe++){
+        const angle=waveIndex*1.7+foe*Math.PI*2/squad;
+        const charge=Math.max(0,1-age/.65),knockback=Math.max(0,age-.72)*100;
+        const distance=65+charge*130+knockback;
+        const ex=originX+Math.cos(angle)*distance,ey=originY+Math.sin(angle)*distance*.65;
+        const enemy=(['skeleton','wolf','goblin','orc','troll'] as const)[(waveIndex+foe)%5];
+        const size=enemy==='troll'?102:76;
+        ctx.save();ctx.globalAlpha=Math.min(1,age*8)*Math.max(0,1-Math.max(0,age-.9)/.75);
+        this.sprite(ctx,visualSpriteBoxes[enemy],`foe-${waveIndex}-${foe}`,age*1000,ex-size/2,ey-size*.65,size,size);
+        if(!reduced&&age>.2){
+          ctx.globalCompositeOperation='lighter';ctx.strokeStyle=foe%2?'#a2ffff':'#ffd28a';ctx.lineWidth=2.5;
+          ctx.beginPath();ctx.moveTo(hx,hy-10);
+          for(let segment=1;segment<=6;segment++){
+            const f=segment/6;ctx.lineTo(hx+(ex-hx)*f+Math.sin(segment*13+time*20)*12,hy+(ey-hy)*f-10+Math.cos(segment*7)*9);
+          }ctx.stroke();ctx.fillStyle='#ffe6bd';ctx.beginPath();ctx.arc(ex,ey,8+(age% .2)*30,0,Math.PI*2);ctx.fill();
+        }ctx.restore();
+      }
     }
+    // Treasure chests erupt, then gem trails arc back to the running hero.
+    if(!reduced)for(const cue of this.cues.slice(Math.max(0,sample.index-3),sample.index+1).filter(c=>c.event==='treasure')){
+      const age=time-cue.time;if(age>1.2)continue;
+      const angle=this.cues.indexOf(cue)*2.4;
+      const x=(cue.x+.5)*TILE+Math.cos(angle)*95,y=(cue.y+.5)*TILE+Math.sin(angle)*65;
+      ctx.save();ctx.globalAlpha=Math.max(0,1-age/1.2);
+      this.sprite(ctx,entitySpriteBoxes[EntityType.TREASURE]!,`loot-${cue.time}`,0,x-24,y-34-age*24,48,48);
+      ctx.strokeStyle='#f9d07c';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo((x+hx)/2,y-90,hx,hy-20);ctx.stroke();ctx.restore();
+    }
+    const activeEvent=this.cues.slice(Math.max(0,sample.index-4),sample.index+1).reverse().find(c=>c.event&&time-c.time<1.5);
     // Hero remains crisp in front of the spell work.
     ctx.save();ctx.translate(hx,hy);ctx.fillStyle='#020b18aa';ctx.beginPath();ctx.ellipse(0,24,23,9,0,0,Math.PI*2);ctx.fill();
     if(sample.facing==='left')ctx.scale(-1,1);
-    const action=activeEvent?.event==='fight'?'attack':sample.event==='escape'?'escape':sample.event==='relic'&&sample.age<.8?'collect':sample.event==='spell'&&sample.age<.7?'scout':sample.moving?'walk':'idle';
-    this.sprite(ctx,activeCharacter.spriteBoxes[action],'demo-hero',time*1000,-38,-47,76,76);ctx.restore();
+    const action=waves.length?'attack':sample.event==='escape'?'escape':sample.event==='relic'&&sample.age<.8?'collect':sample.event==='spell'&&sample.age<.7?'scout':sample.moving?'walk':'idle';
+    this.sprite(ctx,activeCharacter.spriteBoxes[action],'demo-hero',(sample.age*1000+sample.index%3*180),-38,-47,76,76);ctx.restore();
     // Orbiting relics accumulate over the journey.
     for(let k=0;k<sample.relics;k++){
       const a=(reduced?0:time*.7)+k*Math.PI*2/3;

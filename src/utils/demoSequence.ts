@@ -12,6 +12,9 @@ export function createDemoLevel() {
       route.push(current);
     }
   }
+  // Four continuous circuits keep footsteps close to the measured beat cadence.
+  const circuit = route.slice(1);
+  for(let lap=1;lap<4;lap++) route.push(...circuit.map(p=>({...p})));
   const landmarks = [{x:8,y:2,entity:EntityType.RELIC},{x:14,y:3,entity:EntityType.RELIC},{x:15,y:15,entity:EntityType.RELIC},
     {x:5,y:5,entity:EntityType.TREASURE},{x:10,y:9,entity:EntityType.TREASURE},{x:2,y:14,entity:EntityType.EXIT}];
   const path = new Set(route.map(p=>`${p.x},${p.y}`));
@@ -27,18 +30,25 @@ export function createDemoLevel() {
 }
 export function createDemoSequence(beats: readonly Beat[]): DemoCue[] {
   const {route,landmarks}=createDemoLevel();
-  if(beats.length < route.length*2) throw new Error('The theme needs at least two beats per route step');
+  if(beats.length < route.length) throw new Error('The theme needs at least one beat per route step');
+  let previousRelic=-80;
+  const relicStops=landmarks.filter(p=>p.entity===EntityType.RELIC).map((landmark,i)=>{
+    const target=(i+1)*route.length/4;
+    const stop=route.map((p,index)=>({p,index})).filter(({p,index})=>index>previousRelic+65&&p.x===landmark.x&&p.y===landmark.y)
+      .sort((a,b)=>Math.abs(a.index-target)-Math.abs(b.index-target))[0].index;
+    previousRelic=stop;return stop;
+  });
   let previous=-1,relics=0;
   return beats.map((beat,i)=>{
-    const routeIndex=Math.floor(Math.floor(i/2)/Math.floor((beats.length-1)/2)*(route.length-1));
+    const routeIndex=Math.floor(i/(beats.length-1)*(route.length-1));
     const pos=route[routeIndex];
     const arrived=routeIndex!==previous; previous=routeIndex;
     const landmark=landmarks.find(p=>p.x===pos.x&&p.y===pos.y);
-    const event:DemoCue['event']=arrived&&routeIndex>0&&landmark?.entity===EntityType.RELIC?'relic':
+    const event:DemoCue['event']=arrived&&relicStops.includes(routeIndex)?'relic':
       arrived&&routeIndex===route.length-1?'escape':arrived&&landmark?.entity===EntityType.TREASURE?'treasure':
-      i>0&&i%32===0?'spell':i>0&&i%16===0?'fight':i>0&&i%8===0?'treasure':undefined;
+      i%8===0?'spell':i%2===0?'fight':'treasure';
     if(event==='relic') relics++;
-    const chapter=relics===0?'The waking shore':relics===1?'Echoes of the grove':relics===2?'The shattered sanctuary':'The homeward tide';
+    const chapter=relics===0?'Storm the shore':relics===1?'The island strikes back':relics===2?'Break the sanctuary':'Run with the relics';
     return {...beat,...pos,routeIndex,event,relics,chapter};
   });
 }
@@ -49,7 +59,7 @@ export function sampleDemo(cues: readonly DemoCue[], time: number) {
   let next=index+1;
   while(next<cues.length&&cues[next].routeIndex===cue.routeIndex)next++;
   const destination=cues[next]??cue;
-  const span=Math.min(.62,Math.max(.001,destination.time-cue.time));
+  const span=Math.max(.001,destination.time-cue.time);
   const progress=destination===cue?0:Math.max(0,Math.min(1,(time-(destination.time-span))/span));
   const eased=progress*progress*(3-2*progress);
   return {...cue,index,x:cue.x+(destination.x-cue.x)*eased,y:cue.y+(destination.y-cue.y)*eased,

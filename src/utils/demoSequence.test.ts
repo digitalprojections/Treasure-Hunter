@@ -39,3 +39,15 @@ test('beat route never teleports and provides sustained fights and discoveries',
   assert.ok(sequence.filter(c=>c.event==='fight').length>=12);
   assert.ok(sequence.filter(c=>c.event==='treasure').length>=20);
 });
+
+test('showcase keeps moving and stages action on every beat',()=>{
+  const sequence=createDemoSequence(score.beats);
+  const steps=sequence.filter((c,i)=>i>0&&c.routeIndex!==sequence[i-1].routeIndex);
+  assert.ok(steps.length>=340, 'at least 340 footsteps across the song');
+  assert.ok(sequence.filter(c=>c.event==='fight').length>=140, 'frequent enemy waves');
+  assert.ok(sequence.filter(c=>c.event==='spell').length>=50, 'spells every musical phrase');
+  assert.ok(sequence.slice(1).every(c=>c.event), 'no empty beat cues');
+  const relics=sequence.filter(c=>c.event==='relic');
+  assert.ok(relics[1].time-relics[0].time>35);
+  assert.ok(relics[2].time-relics[1].time>35);
+});
