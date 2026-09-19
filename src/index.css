@@ -510,5 +510,4 @@ body,
   border-radius: 50%; border: 1px solid #6ee7b7; background: rgb(6 40 34 / 94%);
   box-shadow: 0 0 14px rgb(52 211 153 / 55%);
 }
-.ship-navigation-arrow { position: absolute; color: #fde68a; }
 .ship-navigation-icon { position: relative; background: #062822; border-radius: 3px; }

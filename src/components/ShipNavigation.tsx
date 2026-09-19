@@ -1,5 +1,5 @@
 import { useEffect, useState, type RefObject } from 'react';
-import { ArrowRight, Ship } from 'lucide-react';
+import { Ship } from 'lucide-react';
 import { shipNavigation } from '../utils/shipNavigation';
 
 export function ShipNavigation({ viewport, enabled }: { viewport: RefObject<HTMLElement | null>; enabled: boolean }) {
@@ -25,7 +25,6 @@ export function ShipNavigation({ viewport, enabled }: { viewport: RefObject<HTML
   if (!enabled || !marker) return null;
   return <div className="ship-navigation" role="img" aria-label="Unlocked ship direction"
     style={{ left: marker.x, top: marker.y }}>
-    <ArrowRight className="ship-navigation-arrow" size={42} style={{ transform: `rotate(${marker.angle}deg)` }} />
     <Ship size={17} className="ship-navigation-icon" />
   </div>;
 }
