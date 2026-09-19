@@ -1,3 +1,4 @@
+import { createEffectCleanup, removeCompletedEffects } from './utils/effectCleanup';
 import { useSpriteClock } from './useSpriteClock';
 import { recordTileRender } from './utils/renderDiagnostics';
 import { ShipNavigation } from './components/ShipNavigation';
@@ -195,14 +196,13 @@ export default function App() {
   const revealRevision = useRef(0);
   const pendingRevealKind = useRef<TileRevealKind>('regular');
   const previousRevealState = useRef<RevealSnapshot | null>(null);
-  const finishTileReveal = useCallback((tileId: string, revision: number) => {
-    setTileReveals(current => {
-      if (current[tileId]?.revision !== revision) return current;
-      const next = { ...current };
-      delete next[tileId];
-      return next;
-    });
-  }, []);
+  const [revealCleanup] = useState(() => createEffectCleanup(
+    completed => setTileReveals(current => removeCompletedEffects(current, completed)),
+    task => requestAnimationFrame(task),
+    handle => cancelAnimationFrame(handle),
+  ));
+  useEffect(() => () => revealCleanup.cancel(), [revealCleanup]);
+  const finishTileReveal = revealCleanup.add;
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
   const { volumes, setVolumes, playSound, playMusicEvent, musicStatus } = useGameAudio(!gameState ? 'menu' : gameState.isGameOver ? 'victory' : 'play', islandNumber);
   useEffect(() => {
@@ -973,6 +973,10 @@ function getPlayerAnimationMotion(animation: CharacterAnimationState) {
 export const TileComponent = React.memo(function TileComponent({ tile, terrain, extractionReady, revealEffect, onRevealComplete, isCurrent, idleElapsedMs: externalIdleMs, playerAnimation, playerFacing, spriteClockMs: externalClockMs, combat, onClick, onMove, animationRevision=0 }: TileComponentProps) {
   recordTileRender(tile.id);
   const activate=()=>onMove?onMove(tile.x,tile.y):onClick?.();
+  const revealRevision = revealEffect?.revision;
+  const completeReveal = useCallback(() => {
+    if (revealRevision !== undefined) onRevealComplete(tile.id, revealRevision);
+  }, [onRevealComplete, tile.id, revealRevision]);
   const [isHovered, setIsHovered] = useState(false);
   const getTileColor = (type: TileType) => {
     switch (type) {
@@ -1044,7 +1048,7 @@ export const TileComponent = React.memo(function TileComponent({ tile, terrain, 
     >
       {revealEffect && (
         <React.Fragment key={revealEffect.revision}>
-          <TileRevealParticles kind={revealEffect.kind} onComplete={() => onRevealComplete(tile.id, revealEffect.revision)} />
+          <TileRevealParticles kind={revealEffect.kind} onComplete={completeReveal} />
         </React.Fragment>
       )}
       <AnimatePresence>

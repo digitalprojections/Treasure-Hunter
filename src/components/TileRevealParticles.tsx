@@ -1,11 +1,13 @@
-import type { CSSProperties } from 'react';
+import { memo, type CSSProperties } from 'react';
+import { recordParticleRender } from '../utils/renderDiagnostics';
 import { Gem, Compass, Coins, ShipWheel } from 'lucide-react';
 import type { TileEffectKind } from '../utils/tileReveal';
 
 const sparks = [[-18, -12], [0, -22], [18, -14], [23, 3], [14, 19], [-4, 22], [-20, 13], [-23, -2]];
 const emblems = { gem: Gem, 'relic-complete': ShipWheel, relic: Compass, treasure: Coins, escape: ShipWheel };
 
-export function TileRevealParticles({ onComplete, kind = 'special' }: { onComplete: () => void; kind?: TileEffectKind }) {
+export const TileRevealParticles = memo(function TileRevealParticles({ onComplete, kind = 'special' }: { onComplete: () => void; kind?: TileEffectKind }) {
+  recordParticleRender(kind);
   const reward = kind !== 'regular' && kind !== 'special';
   const Emblem = reward ? emblems[kind] : undefined;
   return (
@@ -28,4 +30,4 @@ export function TileRevealParticles({ onComplete, kind = 'special' }: { onComple
       ))}
     </div>
   );
-}
+});
