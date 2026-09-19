@@ -1,3 +1,4 @@
+import { ShipNavigation } from './components/ShipNavigation';
 import { needsCameraFollow } from './utils/mapCamera';
 import { discoveryRewardEffect } from './utils/rewardFeedback';
 import { revealsWithinIsland, type RevealSnapshot, type TileRevealEffect, type TileRevealKind } from './utils/tileReveal';
@@ -873,6 +874,7 @@ export default function App() {
           </div>
         </section>
 
+        <ShipNavigation viewport={mapViewport} enabled={!!gameState && gameState.stats.relicsCollected >= REQUIRED_RELIC_COUNT && !gameState.isGameOver && !mobilePanelOpen && !audioSettingsOpen} />
         {/* Bottom Console / Log (Combined better) */}
         <aside className="game-console min-h-0 flex flex-col bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 shadow-2xl z-10">
           <div className="min-h-0 flex flex-1 flex-col p-2 sm:p-3 lg:p-6 border-b border-slate-800">

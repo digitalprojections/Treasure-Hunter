@@ -503,3 +503,12 @@ body,
   .console-actions > div { display: contents; }
   .console-actions > button, .console-actions > div button { width: 100%; min-width: 0; padding-inline: 5px; }
 }
+
+.ship-navigation {
+  position: fixed; z-index: 45; width: 46px; height: 46px; transform: translate(-50%, -50%);
+  display: grid; place-items: center; pointer-events: none; color: #bbf7d0;
+  border-radius: 50%; border: 1px solid #6ee7b7; background: rgb(6 40 34 / 94%);
+  box-shadow: 0 0 14px rgb(52 211 153 / 55%);
+}
+.ship-navigation-arrow { position: absolute; color: #fde68a; }
+.ship-navigation-icon { position: relative; background: #062822; border-radius: 3px; }
