@@ -1,3 +1,4 @@
+import { REQUIRED_RELIC_COUNT } from './mapGenerator';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EntityType, TileType, type GameState } from '../types';
@@ -32,4 +33,14 @@ test('ordinary or rejected moves have no reward burst', () => {
   const result = moveHero(before, 1, 0);
   assert.equal(discoveryRewardEffect(before, result.state), undefined);
   assert.equal(discoveryRewardEffect(before, before), undefined);
+});
+
+test('the final required relic has a distinct completion burst', () => {
+  const before = state(EntityType.RELIC);
+  before.stats.relicsCollected = REQUIRED_RELIC_COUNT - 1;
+  const result = moveHero(before, 1, 0);
+  assert.deepEqual(discoveryRewardEffect(before, result.state, result.achievement), { tileId: 'reward', kind: 'relic-complete' });
+  const back = moveHero(result.state, 0, 0).state;
+  const repeat = moveHero(back, 1, 0);
+  assert.equal(discoveryRewardEffect(back, repeat.state, repeat.achievement), undefined);
 });

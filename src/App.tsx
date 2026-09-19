@@ -727,6 +727,12 @@ export default function App() {
           <section>
             <h3 className="panel-heading font-bold text-slate-500 uppercase">Relic Discovery</h3>
             <div className="relic-stats">
+              {gameState && gameState.stats.relicsCollected >= REQUIRED_RELIC_COUNT && !gameState.isGameOver && (
+                <div className="relic-completion-notice" role="status">
+                  <Trophy size={22} aria-hidden="true" />
+                  <div><strong>All relics recovered</strong><span>Return to the ship</span></div>
+                </div>
+              )}
               <div className="flex items-center justify-between p-1.5 bg-slate-800/30 rounded border border-slate-700/30">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
@@ -799,6 +805,7 @@ export default function App() {
                 key={tile.id} 
                 tile={tile} 
                 revealEffect={tileReveals[tile.id]}
+                extractionReady={tile.entity === EntityType.EXIT && gameState.stats.relicsCollected >= REQUIRED_RELIC_COUNT && !gameState.isGameOver}
                 onRevealComplete={finishTileReveal}
                 terrain={terrainClassifications.get(tile.id)}
                 isCurrent={gameState.playerPos.x === tile.x && gameState.playerPos.y === tile.y}
@@ -884,6 +891,7 @@ function getSkillIcon(skillId: CharacterSkill['id']) {
 }
 interface TileComponentProps {
   tile: Tile;
+  extractionReady?: boolean;
   revealEffect?: TileRevealEffect;
   onRevealComplete: (tileId: string, revision: number) => void;
   terrain?: TerrainTileClassification;
@@ -924,7 +932,7 @@ function getPlayerAnimationMotion(animation: CharacterAnimationState) {
   }
 }
 
-const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, revealEffect, onRevealComplete, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, combat, onClick }) => {
+const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, extractionReady, revealEffect, onRevealComplete, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, combat, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const getTileColor = (type: TileType) => {
     switch (type) {
@@ -981,8 +989,9 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, revealEffe
       whileHover={tile.discovered ? { scale: 0.98, backgroundColor: 'rgba(255,255,255,0.05)' } : {}}
       className={cn(
         "relative cursor-pointer aspect-square transition-all duration-700 group",
-        (revealEffect?.kind === 'relic' || revealEffect?.kind === 'treasure') ? "tile-with-discovery-effect" : "overflow-hidden",
+        (revealEffect?.kind === 'relic-complete' || revealEffect?.kind === 'relic' || revealEffect?.kind === 'treasure') ? "tile-with-discovery-effect" : "overflow-hidden",
         isCurrent && "tile-current-hero",
+        extractionReady && "extraction-ready",
         !tile.discovered && "bg-slate-800"
       )}
     >

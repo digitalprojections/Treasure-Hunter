@@ -1,3 +1,4 @@
+import { REQUIRED_RELIC_COUNT } from '../src/utils/mapGenerator';
 import { discoveryRewardEffect } from '../src/utils/rewardFeedback';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
@@ -33,17 +34,17 @@ button.onclick = async () => {
   const results: { source: string; revealed: number; cleanup: string; soundRms: number }[] = [];
   try {
     await context.resume();
-    for (const animal of ['relic', 'gem', 'treasure', 'turtle', 'rabbit', 'deer', 'boar', 'falcon', 'roadSign', 'quest', 'regular', 'skill']) {
+    for (const animal of ['relic-complete', 'relic', 'gem', 'treasure', 'turtle', 'rabbit', 'deer', 'boar', 'falcon', 'roadSign', 'quest', 'regular', 'skill']) {
       const state: GameState = {
         playerPos: { x: 2, y: 3 }, stamina: 20, maxStamina: 20, isGameOver: false,
         resources: { gold: 100, wood: 20, stone: 10, gems: 0 },
-        stats: { treasuresFound: 0, relicsCollected: 0, trapsTriggered: 0, daysElapsed: 1 },
+        stats: { treasuresFound: 0, relicsCollected: animal === 'relic-complete' ? REQUIRED_RELIC_COUNT - 1 : 0, trapsTriggered: 0, daysElapsed: 1 },
         tiles: Array.from({ length: 49 }, (_, i) => ({
           id: String(i), x: i % 7, y: Math.floor(i / 7), type: TileType.GRASS,
           discovered: Math.abs(i % 7 - 2) <= 1 && Math.abs(Math.floor(i / 7) - 3) <= 1,
-          ...(i === 24 && ['relic', 'gem', 'treasure'].includes(animal)
-            ? { entity: animal === 'gem' ? EntityType.TRAP : animal === 'relic' ? EntityType.RELIC : EntityType.TREASURE } : {}),
-          ...(i === 24 && !['regular', 'skill', 'gem', 'relic', 'treasure'].includes(animal) ? { visual: { id: animal as TileVisualId, label: animal, tone: 'wildlife' as const } } : {}),
+          ...(i === 24 && ['relic-complete', 'relic', 'gem', 'treasure'].includes(animal)
+            ? { entity: animal === 'gem' ? EntityType.TRAP : animal.startsWith('relic') ? EntityType.RELIC : EntityType.TREASURE } : {}),
+          ...(i === 24 && !['regular', 'skill', 'gem', 'relic-complete', 'relic', 'treasure'].includes(animal) ? { visual: { id: animal as TileVisualId, label: animal, tone: 'wildlife' as const } } : {}),
         })),
       };
       const result = animal === 'skill'
@@ -57,8 +58,8 @@ button.onclick = async () => {
       const render = () => flushSync(() => root.render(
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
           {result.state.tiles.map(tile => <div key={tile.id} data-tile-id={tile.id}
-            className={(kind === 'relic' || kind === 'treasure') && revealing.has(tile.id) ? "tile-with-discovery-effect" : undefined}
-            style={{ position: 'relative', aspectRatio: '1', background: tile.discovered ? '#356957' : '#1e293b', overflow: (kind === 'relic' || kind === 'treasure') && revealing.has(tile.id) ? 'visible' : 'hidden' }}>
+            className={(kind === 'relic-complete' || kind === 'relic' || kind === 'treasure') && revealing.has(tile.id) ? "tile-with-discovery-effect" : undefined}
+            style={{ position: 'relative', aspectRatio: '1', background: tile.discovered ? '#356957' : '#1e293b', overflow: (kind === 'relic-complete' || kind === 'relic' || kind === 'treasure') && revealing.has(tile.id) ? 'visible' : 'hidden' }}>
             {tile.visual?.label}
             {revealing.has(tile.id) && <TileRevealParticles kind={kind} onComplete={() => { revealing.delete(tile.id); render(); }} />}
           </div>)}
@@ -70,7 +71,7 @@ button.onclick = async () => {
       assert(effects.length === expected, animal + ': particle tile mismatch');
       assert(effects.every(element => getComputedStyle(element).pointerEvents === 'none'), 'Particles intercept input');
       assert(document.querySelectorAll('.tile-reveal-spark').length === expected * (kind === 'regular' ? 0 : 8), 'Wrong animation style');
-      if (kind === 'relic' || kind === 'treasure') {
+      if (kind === 'relic-complete' || kind === 'relic' || kind === 'treasure') {
         const effect = effects[0], tile = effect.parentElement!;
         assert(effect.getBoundingClientRect().width >= tile.getBoundingClientRect().width * 2.5, 'Reward effect is too small');
         assert(getComputedStyle(tile).overflow === 'visible', 'Reward effect is clipped');

@@ -346,25 +346,25 @@ body,
 /* Quick, generous reward bursts surround the hero instead of covering it. */
 .tile-with-discovery-effect { overflow: visible; z-index: 42; }
 .tile-current-hero { z-index: 43; }
-.tile-discovery:is(.tile-reveal-relic, .tile-reveal-treasure) {
+.tile-discovery:is(.tile-reveal-relic, .tile-reveal-treasure, .tile-reveal-relic-complete) {
   inset: -80%;
   overflow: visible;
   color: #ffe8a6;
   background: radial-gradient(circle, transparent 12%, rgb(255 211 112 / 42%) 32%, rgb(207 139 37 / 18%) 48%, transparent 72%);
   animation: reward-burst 1200ms ease-out both;
 }
-:is(.tile-reveal-relic, .tile-reveal-treasure) .discovery-sigil {
+:is(.tile-reveal-relic, .tile-reveal-treasure, .tile-reveal-relic-complete) .discovery-sigil {
   stroke-width: 1.8;
   filter: drop-shadow(0 0 6px #e6bb65);
   animation: reward-sigil 1100ms ease-out both;
 }
-:is(.tile-reveal-relic, .tile-reveal-treasure) .discovery-emblem {
+:is(.tile-reveal-relic, .tile-reveal-treasure, .tile-reveal-relic-complete) .discovery-emblem {
   translate: 0 -26%;
   animation-duration: 1050ms;
   filter: drop-shadow(0 0 9px #ffe1a0);
 }
-:is(.tile-reveal-relic, .tile-reveal-treasure) .discovery-emblem svg { width: 36px; height: 36px; }
-:is(.tile-reveal-relic, .tile-reveal-treasure) .tile-reveal-spark {
+:is(.tile-reveal-relic, .tile-reveal-treasure, .tile-reveal-relic-complete) .discovery-emblem svg { width: 36px; height: 36px; }
+:is(.tile-reveal-relic, .tile-reveal-treasure, .tile-reveal-relic-complete) .tile-reveal-spark {
   width: 3px; height: 3px;
   animation: reward-mote 950ms ease-out both;
   animation-delay: var(--spark-delay);
@@ -385,6 +385,33 @@ body,
   100% { transform: translate(calc(var(--spark-x) * 2.4), calc(var(--spark-y) * 2.4 - 25px)); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  :is(.tile-reveal-relic, .tile-reveal-treasure) .discovery-sigil { animation: none; opacity: 1; }
-  :is(.tile-reveal-relic, .tile-reveal-treasure) .tile-reveal-spark { display: none; }
+  :is(.tile-reveal-relic, .tile-reveal-treasure, .tile-reveal-relic-complete) .discovery-sigil { animation: none; opacity: 1; }
+  :is(.tile-reveal-relic, .tile-reveal-treasure, .tile-reveal-relic-complete) .tile-reveal-spark { display: none; }
+}
+
+.tile-discovery.tile-reveal-relic-complete {
+  inset: -100%; color: #a7ffdf;
+  background: radial-gradient(circle, transparent 18%, rgb(58 239 175 / 48%) 33%, rgb(255 211 112 / 22%) 49%, transparent 72%);
+}
+.relic-completion-notice {
+  display: flex; align-items: center; gap: 10px; padding: 10px;
+  color: #b4ffdc; background: #10392f; border: 1px solid #6ee7b7; border-radius: 6px;
+  animation: relic-completion-arrival 700ms ease-out both;
+}
+.relic-completion-notice strong, .relic-completion-notice span { display: block; }
+.relic-completion-notice strong { font-size: 12px; }
+.relic-completion-notice span { font-size: 11px; color: #fce6ad; }
+.extraction-ready::after {
+  content: ''; position: absolute; inset: 2px; z-index: 45; pointer-events: none;
+  border: 2px solid #a7ffdf; border-radius: 5px;
+  box-shadow: inset 0 0 12px #34d399, 0 0 8px #fbd879;
+  animation: extraction-beacon 1400ms ease-in-out infinite alternate;
+}
+@keyframes extraction-beacon { to { opacity: .5; box-shadow: inset 0 0 3px #34d399; } }
+@keyframes relic-completion-arrival {
+  from { transform: scale(.92); box-shadow: 0 0 28px #6ee7b7; }
+  to { transform: scale(1); box-shadow: 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .extraction-ready::after, .relic-completion-notice { animation: none; }
 }
