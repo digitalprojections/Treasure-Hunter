@@ -1,137 +1,127 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { MusicPlayer } from './musicPlayer';
 
-test('overlay cue plays once without lowering or changing exploration', () => {
-  const audios: any[] = [];
-  const player = new MusicPlayer(['a', 'b'], () => {}, () => {
-    const audio = { src: '', volume: 0, loop: false, onended: null, onerror: null, onplaying: null,
-      play: async () => {}, pause() {} };
-    audios.push(audio);
-    return audio as unknown as HTMLAudioElement;
-  }, true);
-  player.setVolume(0.5);
+function setup(t: TestContext, loops = true) {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+  const audios: any[] = [], states: string[] = [];
+  const player = new MusicPlayer(['a', 'b', 'c'], s => states.push(s), () => {
+    const audio = { src: '', volume: 0, paused: true, loop: false, currentTime: 0, duration: 30, plays: 0,
+      onended: null, onerror: null, onplaying: null,
+      play: async () => { audio.paused = false; audio.plays++; }, pause() { audio.paused = true; } };
+    audios.push(audio); return audio as unknown as HTMLAudioElement;
+  }, loops);
+  t.after(() => player.dispose());
+  player.setVolume(0.5); void player.play(); audios[0].onplaying();
+  return { player, audios, states, bed: audios[0], tick: (ms = 1200) => t.mock.timers.tick(ms),
+    latest: (src: string) => [...audios].reverse().find(a => a.src === src && a.plays > 0) ?? [...audios].reverse().find(a => a.src === src)! };
+}
+test('overlay cue preserves exploration volume and volume changes preserve fade progress', t => {
+  const { player, bed, latest, tick } = setup(t);
   player.playCue('relic', 3, false);
-  assert.equal(audios[1].loop, false);
-  assert.equal(audios[0].volume, 0.5);
+  const cue = latest('relic'); cue.onplaying(); tick();
+  assert.equal(cue.loop, false);
+  assert.equal(bed.volume, 0.5);
   player.setVolume(0.3);
-  assert.equal(audios[0].volume, 0.3);
-  assert.equal(audios[1].volume, 0.3);
-  assert.equal(audios[0].src, 'a');
-  audios[1].onended();
-  assert.equal(audios[0].src, 'a');
-  player.dispose();
+  assert.equal(bed.volume, 0.3); assert.equal(cue.volume, 0.3);
+  cue.onended(); tick();
+  assert.equal(bed.src, 'a'); assert.equal(bed.volume, 0.3);
 });
-
-test('blocked music can retry from a subsequent gesture without resetting its track', async () => {
-  let attempts = 0;
-  const audio = { src: '', volume: 0, paused: true, onended: null, onerror: null, onplaying: null,
-    play: async () => { if (++attempts === 1) throw { name: 'NotAllowedError' }; }, pause() {} };
-  const states: string[] = [];
-  const player = new MusicPlayer(['a.mp3', 'b.mp3'], state => states.push(state), () => audio as unknown as HTMLAudioElement);
-  player.setVolume(0.25);
-  await player.play();
-  assert.equal(states.at(-1), 'Click to enable music');
-  await player.play();
-  assert.equal(attempts, 2);
-  assert.equal(audio.src, 'a.mp3');
-  player.dispose();
-});
-
-test('unplayable tracks are skipped once and an entirely broken playlist stops', async () => {
-  const played: string[] = [];
-  const audio = { src: '', volume: 0, paused: true, onended: null, onerror: null, onplaying: null,
-    play: async () => { played.push(audio.src); throw { name: 'NotSupportedError' }; }, pause() {} };
-  const states: string[] = [];
-  const player = new MusicPlayer(['a.mp3', 'b.mp3'], state => states.push(state), () => audio as unknown as HTMLAudioElement);
-  player.setVolume(0.25);
-  await player.play();
-  await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(played, ['a.mp3', 'b.mp3']);
-  assert.equal(states.at(-1), 'Music files could not be played');
-  player.dispose();
-});
-
-test('playlist advances, loops, pauses when muted, and detaches on disposal', async () => {
-  let attempts = 0, pauses = 0;
-  const audio = { src: '', volume: 0, paused: true, onended: null as (() => void) | null,
-    onerror: null, onplaying: null, play: async () => { attempts++; }, pause() { pauses++; } };
-  const player = new MusicPlayer(['a.mp3', 'b.mp3'], () => {}, () => audio as unknown as HTMLAudioElement);
-  player.setVolume(0.3);
-  await player.play();
-  audio.onended!();
-  assert.equal(audio.src, 'b.mp3');
-  audio.onended!();
-  assert.equal(audio.src, 'a.mp3');
-  assert.equal(attempts, 3);
-  player.setVolume(0);
-  await player.play();
-  assert.equal(attempts, 3);
-  assert.equal(pauses, 1);
-  player.dispose();
-  assert.equal(audio.onended, null);
-  assert.equal(audio.onplaying, null);
-});
-
-test('event cues duck loops, prevent stacking and restore music on completion', async () => {
-  const audios: any[] = [];
-  const createAudio = () => {
-    const audio = { src: '', volume: 0, paused: true, loop: false, onended: null, onerror: null, onplaying: null,
-      play: async () => {}, pause() {} };
-    audios.push(audio);
-    return audio as unknown as HTMLAudioElement;
-  };
-  const player = new MusicPlayer(['loop-a', 'loop-b'], () => {}, createAudio, true);
-  player.setVolume(0.5);
-  assert.equal(audios[0].loop, true);
-  player.playCue('relic', 3);
-  assert.equal(audios.length, 2);
-  assert.equal(audios[1].volume, 0.5);
-  player.playCue('combat', 1);
-  assert.equal(audios.length, 2);
-  player.setVolume(0.4);
-  assert.equal(audios[0].volume, 0.4 * 0.18);
-  assert.equal(audios[1].volume, 0.4);
-  assert.equal(audios[0].src, 'loop-a');
-  audios[1].onended();
-  assert.equal(audios[0].src, 'loop-a');
-  player.setVolume(0.4);
-  assert.equal(audios[0].volume, 0.4);
-  player.playCue('rest', 1);
+test('blocked playback retries from a later gesture without resetting the source', async t => {
+  const { player, bed, states } = setup(t);
   player.pause();
-  assert.equal(audios[0].src, 'loop-a');
-  assert.equal(audios[2].onended, null);
+  let attempts = 0;
+  bed.play = async () => { if (++attempts === 1) throw { name: 'NotAllowedError' }; bed.paused = false; };
+  await player.play(); assert.equal(states.at(-1), 'Click to enable music');
+  await player.play(); assert.equal(attempts, 2); assert.equal(bed.src, 'a');
+});
+test('unplayable tracks are each attempted once and a broken playlist stops', async t => {
+  const states: string[] = [], played: string[] = [];
+  const player = new MusicPlayer(['a', 'b'], s => states.push(s), () => {
+    const audio = { src: '', volume: 0, paused: true, pause() {}, play: async () => {
+      played.push(audio.src); throw { name: 'NotSupportedError' };
+    } };
+    return audio as unknown as HTMLAudioElement;
+  });
+  t.after(() => player.dispose());
+  player.setVolume(0.5); await player.play();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(played, ['a', 'b']);
+  assert.equal(states.at(-1), 'Music files could not be played');
+});
+test('playlist advances, wraps, pauses when muted and removes all disposal handlers', t => {
+  const { player, bed, latest, audios, tick } = setup(t, false);
+  bed.onended(); latest('b').onplaying(); tick();
+  latest('b').onended(); latest('c').onplaying(); tick();
+  latest('c').onended(); latest('a').onplaying(); tick();
+  assert.equal(latest('a').paused, false);
+  player.setVolume(0); void player.play();
+  assert.ok(audios.every(a => a.paused));
   player.dispose();
+  assert.ok(audios.every(a => a.onended === null && a.onplaying === null && a.onerror === null));
+});
+test('event priorities prevent stacking, cue failure recovers and pause cancels cue completion', t => {
+  const { player, bed, latest, audios, tick } = setup(t);
+  player.playCue('relic', 3); latest('relic').onplaying(); tick();
+  const count = audios.length; player.playCue('combat', 1); assert.equal(audios.length, count);
+  player.setVolume(0.4);
+  assert.equal(bed.volume, 0.4 * 0.3);
+  latest('relic').onerror(); tick(); assert.equal(bed.volume, 0.4);
+  player.playCue('combat', 1, true);
+  const stale = latest('combat').onended;
+  player.pause(); stale(); tick();
+  assert.equal(bed.src, 'a');
+  assert.equal(latest('combat').onended, null);
+});
+test('scene changes overlap, and another scene change cancels the obsolete loading track', t => {
+  const { player, bed, latest, tick } = setup(t);
+  player.setTracks(['menu']); const obsolete = latest('menu'); const stale = obsolete.onplaying;
+  player.setTracks(['victory']); stale(); tick();
+  assert.equal(bed.paused, false); assert.equal(obsolete.paused, true);
+  latest('victory').onplaying(); tick(400);
+  assert.ok(bed.volume > 0 && latest('victory').volume > 0);
+  tick(); assert.equal(bed.paused, true);
+  player.setTracks([]); tick(); assert.equal(latest('victory').paused, true);
+});
+test('a failed replacement keeps the previous section audible while the next candidate loads', t => {
+  const { player, bed, latest, tick } = setup(t);
+  player.setTracks(['b', 'c'], true);
+  latest('b').onerror(); tick();
+  assert.equal(bed.paused, false);
+  latest('c').onplaying(); tick();
+  assert.equal(bed.paused, true);
+  assert.equal(latest('c').volume, 0.5);
+});
+test('volume changes during a crossfade scale both layers without resetting their envelope', t => {
+  const { player, bed, latest, tick } = setup(t);
+  player.setTracks(['new']); latest('new').onplaying(); tick(500);
+  const old = bed.volume, next = latest('new').volume;
+  player.setVolume(0.25);
+  assert.equal(bed.volume, old / 2); assert.equal(latest('new').volume, next / 2);
+  tick(); assert.equal(latest('new').volume, 0.25);
+});
+test('pause during crossfade cancels outgoing layers and resumes the current section', async t => {
+  const { player, bed, latest, tick } = setup(t);
+  player.setTracks(['new']); latest('new').onplaying(); tick(400);
+  player.pause(); tick();
+  assert.equal(bed.paused, true); assert.equal(latest('new').paused, true);
+  await player.play();
+  assert.equal(latest('new').paused, false); assert.equal(bed.paused, true);
 });
 
-test('only completed combat cues advance once in order; errors and replaced cues do not', async () => {
-  const audios: any[] = [];
-  const player = new MusicPlayer(['a', 'b', 'c'], () => {}, () => {
-    const audio = { src: '', volume: 0, onended: null, onerror: null, onplaying: null, play: async () => {}, pause() {} };
-    audios.push(audio);
-    return audio as unknown as HTMLAudioElement;
-  }, true);
-  player.setVolume(0.5);
-  player.playCue('broken', 1, true, true);
-  audios[1].onerror();
-  assert.equal(audios[0].src, 'a');
-  player.playCue('combat', 1, true, true);
-  const staleEnd = audios[2].onended;
-  player.playCue('victory', 4);
-  staleEnd();
-  assert.equal(audios[0].src, 'a');
-  const completed = audios[3].onended;
-  completed();
-  completed();
-  assert.equal(audios[0].src, 'a');
-  player.playCue('combat', 1, true, true);
-  audios[4].onended();
-  assert.equal(audios[0].src, 'b');
-  player.playCue('combat', 1, true, true);
-  audios[5].onended();
-  assert.equal(audios[0].src, 'c');
-  player.playCue('combat', 1, true, true);
-  audios[6].onended();
-  assert.equal(audios[0].src, 'a');
-  player.dispose();
+
+test('completed gameplay cues keep the current island track and playback position', t => {
+  const { player, bed, latest, audios, tick } = setup(t);
+  bed.currentTime = 8;
+  for (const event of ['combat', 'combat', 'discovery', 'relic', 'rest', 'setback', 'victory']) {
+    player.playCue(event, 1, true);
+    latest(event).onplaying();
+    latest(event).onended();
+    tick();
+    assert.equal(bed.paused, false);
+    assert.equal(bed.currentTime, 8);
+    assert.equal(bed.src, 'a');
+    assert.equal(audios.filter(a => a.src !== 'a' && a.src !== event && a.plays > 0 && !a.paused).length, 0);
+    assert.ok(!audios.some(a => ['b', 'c'].includes(a.src)), 'events cannot choose another track');
+  }
 });

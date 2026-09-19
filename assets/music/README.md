@@ -1,8 +1,9 @@
 # Treasure Hunter music
 
 Place MP3, OGG, WAV, M4A, or WebM original tracks directly in `menu/`, `play/`,
-`victory/`, or `defeat/`. Filenames are unrestricted. Tracks cycle in filename
-order within a scene. Empty scenes are silent. Playback starts after player
+`victory/`, or `defeat/`. Filenames are unrestricted. Exploration selects one track per island in filename
+order, wrapping after the last track. That track repeats until the next island.
+Other scene playlists cycle in filename order. Empty scenes are silent. Playback starts after player
 interaction and pauses while the tab is hidden.
 
 The current game uses play and victory. Menu is used before game initialization;
@@ -12,15 +13,17 @@ Refresh development after adding files; production needs a rebuild.
 
 ## Section-based musical flow
 
-- `loops/exploration/`: each section repeats while exploring. Only a successfully
-  completed combat cue advances to the next section, in filename order, wrapping
-  at the end. Other events, failed, interrupted or muted cues do not advance the section.
-  These take priority over full `play/` tracks.
+- `loops/exploration/`: one section is selected when a new island is generated
+  and repeats throughout that island. Combat, discoveries, relics, rest, setbacks
+  and victory cues never change or restart the background track. Reaching the next
+  island (or generating a new map) selects the next track in filename order.
+  These take priority over full `play/` tracks; the same one-track-per-island rule
+  also applies to the full-track fallback.
 - `events/combat/`, `discovery/`, `relic/`, `setback/`, `rest/`, `victory/`:
   short one-shot phrases for their gameplay events. Ordinary steps and resource
   pickups use SFX only. Relic cues play once over exploration at its normal
-  volume. Other cues lower the background over 300 ms, then restore it.
-  Higher-priority cues replace lower ones; equal/lower cues never stack.
+  volume. Other cues lower the background only once playback starts, then restore it
+  during the last 700 ms of the cue. Higher-priority cues crossfade over lower ones; equal/lower cues never stack.
   Cues follow music volume, not effects volume. Hidden tabs stop cues and pause loops.
 - Full tracks remain untouched and serve as fallback when no exploration loops exist.
 
@@ -34,3 +37,16 @@ Loop joins blend into source pre-roll without shortening the section;
 event phrases have short fade-ins and fade-outs. Rendering validates decoded
 duration and finite samples. These are automatically selected cuts, not a
 claim of a listening-approved musical edit.
+
+## Transition checks
+
+Island track changes and loop boundaries overlap for one second using
+equal-power fades. The previous section continues while the next loads. Cue
+entries overlap over 240 ms; mute and hidden-tab pause stop every active layer.
+
+Run `npm run test:music` for deterministic transition and lifecycle regressions.
+With the development server running, open `/scripts/verify-music-playback.html`
+and choose **Run playback check**. This plays the actual clips through a browser
+audio analyser, checks overlapping transitions and silence gaps, then stops all
+playback. The report covers runtime continuity; listen as well when changing
+the clips or tuning their musical phrasing.

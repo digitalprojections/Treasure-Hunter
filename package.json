@@ -1,9 +1,10 @@
 {
   "name": "treasure-hunter",
   "private": true,
-  "version": "0.0.29",
+  "version": "0.0.31",
   "type": "module",
   "scripts": {
+    "test:music": "tsx --test src/utils/musicPlayer.test.ts src/utils/musicTransitions.test.ts src/utils/musicFlow.test.ts src/utils/audio.test.ts",
     "test:combat-rendering": "tsx scripts/verify-combat-rendering.ts",
     "assets:check": "tsx scripts/check-asset-conventions.ts",
     "dev": "tsx server.ts",

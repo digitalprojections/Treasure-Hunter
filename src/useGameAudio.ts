@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { selectEffectSource, SynthSfx } from './utils/synthSfx';
+import { musicTracksForIsland } from './utils/musicFlow';
 import { MusicPlayer } from './utils/musicPlayer';
 import { discoverAudio, normalizeVolume, type MusicScene, type SoundEvent, type MusicEvent } from './utils/audio';
 
@@ -13,8 +14,8 @@ function readVolumes() {
   } catch { return { music: 0.25, sounds: 0.65 }; }
 }
 
-export function useGameAudio(scene: MusicScene) {
-  const backgroundScene = scene === 'victory' && catalog.events.victory.length ? 'play' : scene;
+export function useGameAudio(scene: MusicScene, islandNumber = 1) {
+  const backgroundScene = scene === 'victory' ? 'play' : scene;
   const [volumes, setVolumes] = useState(readVolumes);
   const [musicStatus, setMusicStatus] = useState('Click to enable music');
   const music = useRef<MusicPlayer | null>(null);
@@ -33,8 +34,7 @@ export function useGameAudio(scene: MusicScene) {
     if (unlocked.current && !document.hidden) void music.current?.play();
   }, [volumes]);
   useEffect(() => {
-    const loops = backgroundScene === 'play' ? catalog.loops.exploration : [];
-    const player = new MusicPlayer(loops.length ? loops : catalog.music[backgroundScene], setMusicStatus, undefined, loops.length > 0);
+    const player = new MusicPlayer([], setMusicStatus);
     music.current = player;
     player.setVolume(musicVolume.current);
     const play = () => { if (!document.hidden) void player.play(); };
@@ -46,7 +46,13 @@ export function useGameAudio(scene: MusicScene) {
     document.addEventListener('visibilitychange', visibility);
     if (unlocked.current) play();
     return () => { player.dispose(); music.current = null; window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); document.removeEventListener('visibilitychange', visibility); };
-  }, [backgroundScene]);
+  }, []);
+  useEffect(() => {
+    const loops = backgroundScene === 'play' ? catalog.loops.exploration : [];
+    const tracks = loops.length ? loops : catalog.music[backgroundScene];
+    music.current?.setTracks(backgroundScene === 'play' ? musicTracksForIsland(tracks, islandNumber) : tracks, backgroundScene === 'play');
+    if (unlocked.current && !document.hidden) void music.current?.play();
+  }, [backgroundScene, islandNumber]);
   useEffect(() => {
     const active = effects.current;
     const silence = () => { if (document.hidden) { for (const audio of active) audio.pause(); active.clear(); synth.current?.stop(); } };
@@ -83,7 +89,7 @@ export function useGameAudio(scene: MusicScene) {
     if (!source) return;
     lastCue.current[event] = now;
     const priority = event === 'victory' ? 4 : event === 'relic' ? 3 : event === 'discovery' ? 2 : 1;
-    music.current?.playCue(source, priority, event !== 'relic', event === 'combat');
+    music.current?.playCue(source, priority, event !== 'relic');
   }, []);
   return { volumes, setVolumes, playSound, playMusicEvent, musicStatus };
 }

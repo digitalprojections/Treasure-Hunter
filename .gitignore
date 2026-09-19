@@ -18,3 +18,6 @@ tmp/
 *.tsbuildinfo
 playwright-report/
 test-results/
+
+# Local media and build tool caches
+.cache/

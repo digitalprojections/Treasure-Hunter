@@ -139,8 +139,9 @@ const LogItem: React.FC<LogItemProps> = ({ message, type, timestamp, count }) =>
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [islandNumber, setIslandNumber] = useState(0);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
-  const { volumes, setVolumes, playSound, playMusicEvent, musicStatus } = useGameAudio(!gameState ? 'menu' : gameState.isGameOver ? 'victory' : 'play');
+  const { volumes, setVolumes, playSound, playMusicEvent, musicStatus } = useGameAudio(!gameState ? 'menu' : gameState.isGameOver ? 'victory' : 'play', islandNumber);
   const [logs, setLogs] = useState<ExpeditionLog[]>([]);
   const [cacheOffer, setCacheOffer] = useState<{ x: number; y: number; kind: 'cache' | 'marker' } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -217,6 +218,7 @@ export default function App() {
     setCacheOffer(null);
     playPlayerAnimation('idle');
     gameSessionIdRef.current = createSessionId();
+    setIslandNumber(number => number + 1);
     const tiles = generateIsland();
     const startPos = getStartingPosition(tiles);
     
