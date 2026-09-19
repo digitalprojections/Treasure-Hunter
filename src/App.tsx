@@ -1,3 +1,5 @@
+import { ChapterBubbles } from './story/ChapterBubbles';
+import { createChapter, chapterAction, chapterGameState, chapterClues, sites, siteNames, sitePosition, type ChapterAction } from './story/chapter';
 import { ExpeditionOracle } from './components/ExpeditionOracle';
 import { createEffectCleanup, removeCompletedEffects } from './utils/effectCleanup';
 import { useSpriteClock } from './useSpriteClock';
@@ -144,6 +146,12 @@ const LogItem: React.FC<LogItemProps> = ({ message, type, timestamp, count }) =>
 };
 
 export default function App() {
+  const storyEnabled = new URLSearchParams(location.search).get('explore') !== '1';
+  const storySeed = useRef(Math.floor(Math.random() * 6));
+  const [chapter, setChapter] = useState(() => createChapter(storySeed.current));
+  const [journalRevision, setJournalRevision] = useState(0);
+  const storyClues = useMemo(() => chapterClues(chapter), [chapter]);
+  const relicTarget = storyEnabled ? 1 : REQUIRED_RELIC_COUNT;
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [islandNumber, setIslandNumber] = useState(0);
@@ -276,6 +284,13 @@ export default function App() {
     playPlayerAnimation('idle');
     gameSessionIdRef.current = createSessionId();
     setIslandNumber(number => number + 1);
+    if (storyEnabled) {
+      const fresh = createChapter(storySeed.current);
+      setChapter(fresh);
+      setGameState(chapterGameState(fresh));
+      setLogs([{ id:createSessionId(),count:1,message:fresh.message,type:'warning',timestamp:new Date().toLocaleTimeString([], {hour12:false}) }]);
+      return;
+    }
     const tiles = generateIsland();
     const startPos = getStartingPosition(tiles);
     
@@ -442,7 +457,25 @@ export default function App() {
     };
   }, [user, sharedApiSessionId]);
 
+  const applyChapterAction = (action: ChapterAction) => {
+    const next = chapterAction(chapter, action);
+    if (next === chapter) return;
+    const sameTerrain = next.seed===chapter.seed && next.heart===chapter.heart && next.gate===chapter.gate;
+    setChapter(next);
+    setGameState(chapterGameState(next, sameTerrain ? gameState?.tiles : undefined));
+    if(next.message!==chapter.message) addLog(next.message, next.health<chapter.health?'error':'info');
+    if(next.health<chapter.health || next.status==='dead') { playSound('hit'); playPlayerAnimation('hit'); playMusicEvent('setback'); }
+    else if(next.heart&&!chapter.heart){
+      playSound('collect');playMusicEvent('relic');playPlayerAnimation('collect');
+      const p=sitePosition(next,'heart');const revision=++revealRevision.current;
+      setTileReveals(current=>({...current,[`story-${p.x}-${p.y}`]:{revision,kind:'relic-complete'}}));
+    } else if(next.pos!==chapter.pos){ playSound('walk');playPlayerAnimation('walk'); }
+    else if(action.type==='rest'){playSound('rest');playMusicEvent('rest');}
+    if(next.status==='won')playMusicEvent('victory');
+  };
+
   const handleMove = (x: number, y: number, acceptCache = false) => {
+    if(storyEnabled){applyChapterAction({type:'move',x,y});return;}
     if (!gameState || combatTimeoutRef.current !== null) return;
     const clicked = gameState.tiles.find(tile => tile.x === x && tile.y === y);
     if (!acceptCache && clicked && ((clicked.entity === EntityType.TRAP && !clicked.entityFound) || (!clicked.entity && clicked.visual?.id === 'random' && !clicked.visualConsumed)) && clicked.discovered &&
@@ -507,6 +540,7 @@ export default function App() {
   };
 
   const handleUseSkill = async (skill: CharacterSkill) => {
+    if(storyEnabled)return;
     if (combatTimeoutRef.current !== null) return;
     if (!gameState || gameState.isGameOver) return;
 
@@ -597,6 +631,7 @@ export default function App() {
     });
   };
   const handleEndTurn = () => {
+    if(storyEnabled){applyChapterAction({type:'rest'});return;}
     if (combatTimeoutRef.current !== null) return;
     if (!gameState) return;
     playSound('rest');
@@ -631,7 +666,7 @@ export default function App() {
   if (loading) return <div className="flex items-center justify-center h-[100dvh] bg-[#0F172A] text-slate-400 font-mono text-xs tracking-widest uppercase animate-pulse">Initializing Expedition Data...</div>;
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] bg-[#0F172A] text-slate-100 font-sans selection:bg-amber-500/30 overflow-hidden flex flex-col border-4 lg:border-8 border-slate-900">
+    <div data-chapter-status={storyEnabled?chapter.status:undefined} className="h-[100dvh] max-h-[100dvh] bg-[#0F172A] text-slate-100 font-sans selection:bg-amber-500/30 overflow-hidden flex flex-col border-4 lg:border-8 border-slate-900">
       {cacheOffer && (
         <div className="encounter-overlay fixed inset-0 z-[100] flex items-center justify-center p-5">
           <section role="dialog" aria-modal="true" aria-labelledby="cache-offer-title"
@@ -669,10 +704,10 @@ export default function App() {
           <div className="hidden lg:block h-8 w-[1px] bg-slate-700 mx-1" />
 
           <div className="resource-strip flex min-w-0 flex-1 gap-2 sm:gap-3 overflow-x-auto pb-1 lg:pb-0">
-            <ResourceItem icon={Coins} image={statSymbols.gold} value={Math.max(0, gameState?.resources.gold || 0)} label="Gold" color="bg-amber-500" />
-            <ResourceItem icon={Trees} image={statSymbols.wood} value={gameState?.resources.wood || 0} label="Wood" color="bg-emerald-500" />
-            <ResourceItem icon={MountainIcon} image={statSymbols.stone} value={gameState?.resources.stone || 0} label="Stone" color="bg-slate-400" />
-            <ResourceItem icon={Sparkles} image={statSymbols.gems} value={gameState?.resources.gems || 0} label="Gems" color="bg-purple-500" />
+            <ResourceItem icon={Coins} image={statSymbols.gold} value={Math.max(0, gameState?.resources.gold || 0)} label={storyEnabled?"Oil":"Gold"} color="bg-amber-500" />
+            <ResourceItem icon={Trees} image={statSymbols.wood} value={gameState?.resources.wood || 0} label={storyEnabled?"Rope":"Wood"} color="bg-emerald-500" />
+            <ResourceItem icon={MountainIcon} image={statSymbols.stone} value={gameState?.resources.stone || 0} label={storyEnabled?"Salt":"Stone"} color="bg-slate-400" />
+            <ResourceItem icon={Sparkles} image={statSymbols.gems} value={gameState?.resources.gems || 0} label={storyEnabled?"Bandage":"Gems"} color="bg-purple-500" />
             {user && <ResourceItem icon={Trophy} image={statSymbols.points} value={pointsEarnedToday} label="Pts Today" color="bg-cyan-500" />}
           </div>
         </div>
@@ -680,12 +715,12 @@ export default function App() {
         <div className="header-account flex shrink-0 items-center gap-2 sm:gap-4">
           <div className="day-stamina flex gap-3 sm:gap-4 items-center bg-slate-900/80 px-3 sm:px-4 py-1.5 rounded-full border border-slate-700 shadow-inner">
             <div className="flex flex-col items-center">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Day</span>
-              <span className="text-xs font-mono font-bold text-amber-500">{gameState?.stats.daysElapsed}</span>
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">{storyEnabled?'Life':'Day'}</span>
+              <span className="text-xs font-mono font-bold text-amber-500">{storyEnabled?chapter.health:gameState?.stats.daysElapsed}</span>
             </div>
             <div className="h-6 w-[1px] bg-slate-800"></div>
             <div className="flex flex-col items-center">
-              <span className="flex items-center gap-1 text-[10px] text-slate-500 font-bold uppercase tracking-tighter"><StatIcon src={statSymbols.stamina} fallback={null} />Stamina</span>
+              <span className="flex items-center gap-1 text-[10px] text-slate-500 font-bold uppercase tracking-tighter"><StatIcon src={statSymbols.stamina} fallback={null} />{storyEnabled?'Light':'Stamina'}</span>
               <span className={cn("text-xs font-mono font-bold", (gameState?.stamina || 0) < 5 ? "text-red-500 animate-pulse" : "text-emerald-400")}>
                 {gameState?.stamina} / {gameState?.maxStamina}
               </span>
@@ -708,10 +743,10 @@ export default function App() {
         </div>
       </header>
 
-      <div className="mobile-vitals"><span>Day {gameState?.stats.daysElapsed}</span><span>Stamina <strong>{gameState?.stamina}/{gameState?.maxStamina}</strong></span></div>
+      <div className="mobile-vitals"><span>{storyEnabled?'Life':'Day'} {storyEnabled?`${chapter.health}/3`:gameState?.stats.daysElapsed}</span><span>{storyEnabled?'Light':'Stamina'} <strong>{gameState?.stamina}/{gameState?.maxStamina}</strong></span></div>
       <div className="mobile-map-toolbar">
         <button onClick={() => setMobilePanelOpen(open => !open)} aria-expanded={mobilePanelOpen} aria-controls="expedition-panel">{mobilePanelOpen ? 'Close details' : 'Skills & details'}</button>
-        <span role="status">{(gameState?.stats.relicsCollected ?? 0) >= REQUIRED_RELIC_COUNT ? 'All relics recovered · Return to ship' : `Relics ${gameState?.stats.relicsCollected ?? 0}/${REQUIRED_RELIC_COUNT}`}</span>
+        <span role="status">{(gameState?.stats.relicsCollected ?? 0) >= relicTarget ? 'All relics recovered · Return to ship' : `Relics ${gameState?.stats.relicsCollected ?? 0}/${relicTarget}`}</span>
         <button onClick={centerHero}>Center hero</button>
       </div>
       <main className="game-layout min-h-0 flex-1 grid overflow-hidden">
@@ -722,7 +757,7 @@ export default function App() {
             <div className="expedition-summary">
               <div className="p-2 bg-slate-800/50 rounded border border-slate-700/50">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-semibold text-slate-300">Island Map 09-X</span>
+                  <span className="text-xs font-semibold text-slate-300">{storyEnabled?'The Bell That Remembers':'Island Map 09-X'}</span>
                   <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest">Active</span>
                 </div>
                 <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
@@ -761,7 +796,7 @@ export default function App() {
           <section>
             <h3 className="panel-heading font-bold text-slate-500 uppercase">Relic Discovery</h3>
             <div className="relic-stats">
-              {gameState && gameState.stats.relicsCollected >= REQUIRED_RELIC_COUNT && !gameState.isGameOver && (
+              {gameState && gameState.stats.relicsCollected >= relicTarget && !gameState.isGameOver && (
                 <div className="relic-completion-notice" role="status">
                   <Trophy size={22} aria-hidden="true" />
                   <div><strong>All relics recovered</strong><span>Return to the ship</span></div>
@@ -774,7 +809,7 @@ export default function App() {
                   </div>
                   <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Total Relics</span>
                 </div>
-                <span className="font-mono text-xs font-bold text-amber-500">{gameState?.stats.relicsCollected} / {REQUIRED_RELIC_COUNT}</span>
+                <span className="font-mono text-xs font-bold text-amber-500">{gameState?.stats.relicsCollected} / {relicTarget}</span>
               </div>
               
               <div className="flex items-center justify-between p-1.5 bg-slate-800/30 rounded border border-slate-700/30">
@@ -789,7 +824,13 @@ export default function App() {
             </div>
           </section>
 
-          <SidebarSection title={`${activeCharacter.label} Skills`}>
+          <SidebarSection title={storyEnabled?'Survival kit':`${activeCharacter.label} Skills`}>
+            {storyEnabled ? <div className="skill-grid grid grid-cols-2 text-white">
+              <button className="skill-button p-2 bg-slate-800 border border-slate-700 rounded text-xs" disabled={!chapter.inventory.oil||chapter.status!=='playing'} onClick={()=>applyChapterAction({type:'rest'})}>Use oil<small className="block text-amber-300">+12 light · +1 life</small></button>
+              <button className="skill-button p-2 bg-slate-800 border border-slate-700 rounded text-xs" disabled={!chapter.inventory.bandage||chapter.health===3||chapter.status!=='playing'} onClick={()=>applyChapterAction({type:'choose',choice:'bandage'})}>Bandage<small className="block text-amber-300">+1 life</small></button>
+              <button className="p-2 bg-slate-800 border border-slate-700 rounded text-xs" onClick={()=>{setJournalRevision(n=>n+1);setMobilePanelOpen(false);}}>Journal</button>
+              <a className="p-2 bg-slate-800 border border-slate-700 rounded text-xs text-center" href="?explore=1">Free expedition</a>
+            </div> : <>
             <div className="skill-grid grid grid-cols-2 text-white">
               {activeCharacter.skills.map((skill) => {
                 const availability = gameState ? canUseCharacterSkill(skill, gameState) : { canUse: false };
@@ -817,6 +858,7 @@ export default function App() {
                 );
               })}
             </div>
+            </>}
           </SidebarSection>
         </aside>
 
@@ -837,9 +879,11 @@ export default function App() {
             {gameState?.tiles.map((tile) => (
               <TileComponent 
                 key={tile.id} 
-                tile={tile} 
+                tile={tile}
+                storyLabel={storyEnabled?sites.find(id=>{const p=sitePosition(chapter,id);return p.x===tile.x&&p.y===tile.y;}):undefined}
+                interactionLabel={storyEnabled?(tile.type===TileType.DEEP_WATER?'Deep water · impassable':`${tile.visual?.label??tile.type} · Move 1 light`):undefined}
                 revealEffect={tileReveals[tile.id]}
-                extractionReady={tile.entity === EntityType.EXIT && gameState.stats.relicsCollected >= REQUIRED_RELIC_COUNT && !gameState.isGameOver}
+                extractionReady={tile.entity === EntityType.EXIT && gameState.stats.relicsCollected >= relicTarget && !gameState.isGameOver}
                 onRevealComplete={finishTileReveal}
                 terrain={terrainClassifications.get(tile.id)}
                 isCurrent={gameState.playerPos.x === tile.x && gameState.playerPos.y === tile.y}
@@ -855,10 +899,11 @@ export default function App() {
           </div>
         </section>
 
-        <ShipNavigation viewport={mapViewport} enabled={!!gameState && gameState.stats.relicsCollected >= REQUIRED_RELIC_COUNT && !gameState.isGameOver && !mobilePanelOpen && !audioSettingsOpen} />
+        {storyEnabled && <ChapterBubbles chapter={chapter} onAction={applyChapterAction} onRetry={startNewGame} onNewTide={()=>{storySeed.current=(storySeed.current+1)%6;startNewGame();}} viewport={mapViewport} journalRevision={journalRevision} hidden={mobilePanelOpen||audioSettingsOpen}/>}
+        <ShipNavigation viewport={mapViewport} enabled={!!gameState && gameState.stats.relicsCollected >= relicTarget && !gameState.isGameOver && !mobilePanelOpen && !audioSettingsOpen} />
         {/* Bottom Console / Log (Combined better) */}
         <aside className="game-console min-h-0 flex flex-col bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 shadow-2xl z-10">
-          {gameState && <ExpeditionOracle state={gameState} />}
+          {gameState && <ExpeditionOracle state={gameState} clues={storyEnabled?storyClues:undefined} relicTarget={relicTarget} />}
           <div className="console-log min-h-0 flex flex-1 flex-col p-2 sm:p-3 lg:p-6 border-b border-slate-800">
             <h3 className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 lg:mb-4">Expedition Log</h3>
             <div className="min-h-0 flex-1 overflow-y-auto pr-2 custom-scrollbar font-mono text-[11px]">
@@ -871,12 +916,12 @@ export default function App() {
           
           <div className="console-actions shrink-0 p-2 sm:p-3 lg:p-6 space-y-2 lg:space-y-3">
              <button 
-              disabled={!!combat}
+              disabled={!!combat || (storyEnabled && (!chapter.inventory.oil || chapter.status!=='playing'))}
               onClick={handleEndTurn}
               className="w-full py-2.5 lg:py-4 bg-amber-600 hover:bg-amber-500 text-white font-bold uppercase tracking-widest rounded shadow-xl shadow-amber-900/20 transform hover:-translate-y-0.5 transition-all active:translate-y-0 flex items-center justify-center gap-2"
             >
               <Calendar size={18} />
-              Conclude Day
+              {storyEnabled?'Use oil':'Conclude Day'}
             </button>
             
             <div className="grid grid-cols-2 gap-2">
@@ -884,7 +929,7 @@ export default function App() {
                 onClick={startNewGame}
                 className="py-2 lg:py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold uppercase text-[10px] tracking-widest rounded transition-all"
               >
-                Reset map
+                {storyEnabled?'Retry island':'Reset map'}
               </button>
               <button onClick={() => setAudioSettingsOpen(true)} className="py-2 lg:py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold uppercase text-[10px] tracking-widest rounded">
                 Settings
@@ -942,6 +987,8 @@ interface TileComponentProps {
   onClick?: () => void;
   onMove?: (x:number,y:number) => void;
   animationRevision?: number;
+  interactionLabel?: string;
+  storyLabel?: string;
 }
 
 const LegendItem = ({ label, color, icon: Icon, spriteBox }: { label: string, color: string, icon?: any, spriteBox?: SpriteBoxModule }) => (
@@ -972,7 +1019,7 @@ function getPlayerAnimationMotion(animation: CharacterAnimationState) {
   }
 }
 
-export const TileComponent = React.memo(function TileComponent({ tile, terrain, extractionReady, revealEffect, onRevealComplete, isCurrent, idleElapsedMs: externalIdleMs, playerAnimation, playerFacing, spriteClockMs: externalClockMs, combat, onClick, onMove, animationRevision=0 }: TileComponentProps) {
+export const TileComponent = React.memo(function TileComponent({ tile, terrain, extractionReady, revealEffect, onRevealComplete, isCurrent, idleElapsedMs: externalIdleMs, playerAnimation, playerFacing, spriteClockMs: externalClockMs, combat, onClick, onMove, animationRevision=0, interactionLabel, storyLabel }: TileComponentProps) {
   recordTileRender(tile.id);
   const activate=()=>onMove?onMove(tile.x,tile.y):onClick?.();
   const revealRevision = revealEffect?.revision;
@@ -1032,8 +1079,8 @@ export const TileComponent = React.memo(function TileComponent({ tile, terrain, 
     <motion.div
       role="button"
       tabIndex={0}
-      aria-label={tile.discovered ? `${tileLabel}: ${describeInteraction(tile)}` : 'Explore unknown terrain'}
-      title={tile.discovered ? describeInteraction(tile) : 'Explore unknown terrain'}
+      aria-label={interactionLabel ?? (tile.discovered ? `${tileLabel}: ${describeInteraction(tile)}` : 'Explore unknown terrain')}
+      title={interactionLabel ?? (tile.discovered ? describeInteraction(tile) : 'Explore unknown terrain')}
       data-tile-id={tile.id}
       onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(); } }}
       onClick={activate}
@@ -1048,6 +1095,7 @@ export const TileComponent = React.memo(function TileComponent({ tile, terrain, 
         !tile.discovered && "bg-slate-800"
       )}
     >
+      {storyLabel && <span className="chapter-site-label">{siteNames[storyLabel as keyof typeof siteNames]}</span>}
       {revealEffect && (
         <React.Fragment key={revealEffect.revision}>
           <TileRevealParticles kind={revealEffect.kind} onComplete={completeReveal} />
