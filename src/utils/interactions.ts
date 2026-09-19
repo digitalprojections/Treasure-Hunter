@@ -40,6 +40,7 @@ export interface MoveResult {
   tone: 'info' | 'success' | 'warning' | 'error';
   animation: CharacterAnimationState;
   combatTargetId?: string;
+  revealedTileIds?: string[];
   achievement?: 'treasure_found' | 'relic_collected' | 'island_escape';
 }
 
@@ -127,6 +128,11 @@ export function moveHero(state: GameState, x: number, y: number, random = Math.r
   }
   const radius = rule?.reveal ?? 1;
   for (const t of next.tiles) if (Math.abs(t.x - next.playerPos.x) <= radius && Math.abs(t.y - next.playerPos.y) <= radius) t.discovered = true;
+  if (rule?.action === 'Observe' && rule.reveal) {
+    const known = new Set(state.tiles.filter(t => t.discovered).map(t => t.id));
+    const revealed = next.tiles.filter(t => t.discovered && !known.has(t.id)).map(t => t.id);
+    if (revealed.length) result.revealedTileIds = revealed;
+  }
   if (result.achievement) result.tone = 'success';
   return result;
 }

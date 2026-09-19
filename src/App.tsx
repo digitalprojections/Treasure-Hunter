@@ -1,3 +1,4 @@
+import { TileRevealParticles } from './components/TileRevealParticles';
 import { appendLog, type ExpeditionLog } from './utils/expeditionLog';
 import { useGameAudio } from './useGameAudio';
 import { musicCueForOutcome } from './utils/musicFlow';
@@ -140,6 +141,16 @@ export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [islandNumber, setIslandNumber] = useState(0);
+  const [tileReveals, setTileReveals] = useState<Record<string, number>>({});
+  const revealRevision = useRef(0);
+  const finishTileReveal = useCallback((tileId: string, revision: number) => {
+    setTileReveals(current => {
+      if (current[tileId] !== revision) return current;
+      const next = { ...current };
+      delete next[tileId];
+      return next;
+    });
+  }, []);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
   const { volumes, setVolumes, playSound, playMusicEvent, musicStatus } = useGameAudio(!gameState ? 'menu' : gameState.isGameOver ? 'victory' : 'play', islandNumber);
   const [logs, setLogs] = useState<ExpeditionLog[]>([]);
@@ -215,6 +226,7 @@ export default function App() {
     if (combatTimeoutRef.current !== null) window.clearTimeout(combatTimeoutRef.current);
     combatTimeoutRef.current = null;
     setCombat(null);
+    setTileReveals({});
     setCacheOffer(null);
     playPlayerAnimation('idle');
     gameSessionIdRef.current = createSessionId();
@@ -415,7 +427,11 @@ export default function App() {
       if (result.message && (result.tone === 'warning' || result.tone === 'error')) playSound('warning');
       return;
     }
-    if (result.animation !== 'idle') playSound(result.animation);
+    if (result.revealedTileIds?.length) {
+      const revision = ++revealRevision.current;
+      setTileReveals(current => ({ ...current, ...Object.fromEntries(result.revealedTileIds!.map(id => [id, revision])) }));
+      playSound('reveal');
+    } else if (result.animation !== 'idle') playSound(result.animation);
     const musicCue = musicCueForOutcome(result);
     if (musicCue) playMusicEvent(musicCue);
     setPlayerFacing(current => getHorizontalFacingAfterMove(current, gameState.playerPos.x, result.state.playerPos.x));
@@ -755,6 +771,8 @@ export default function App() {
               <TileComponent 
                 key={tile.id} 
                 tile={tile} 
+                revealRevision={tileReveals[tile.id]}
+                onRevealComplete={finishTileReveal}
                 terrain={terrainClassifications.get(tile.id)}
                 isCurrent={gameState.playerPos.x === tile.x && gameState.playerPos.y === tile.y}
                 idleElapsedMs={idleElapsedMs}
@@ -839,6 +857,8 @@ function getSkillIcon(skillId: CharacterSkill['id']) {
 }
 interface TileComponentProps {
   tile: Tile;
+  revealRevision?: number;
+  onRevealComplete: (tileId: string, revision: number) => void;
   terrain?: TerrainTileClassification;
   isCurrent: boolean;
   idleElapsedMs: number;
@@ -877,7 +897,7 @@ function getPlayerAnimationMotion(animation: CharacterAnimationState) {
   }
 }
 
-const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, combat, onClick }) => {
+const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, revealRevision, onRevealComplete, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, combat, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const getTileColor = (type: TileType) => {
     switch (type) {
@@ -937,6 +957,11 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
         !tile.discovered && "bg-slate-800"
       )}
     >
+      {revealRevision !== undefined && (
+        <React.Fragment key={revealRevision}>
+          <TileRevealParticles onComplete={() => onRevealComplete(tile.id, revealRevision)} />
+        </React.Fragment>
+      )}
       <AnimatePresence>
         {isHovered && tile.discovered && (
           <motion.div

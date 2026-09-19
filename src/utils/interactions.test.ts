@@ -159,3 +159,35 @@ test('skull rolls stay within both ranges and require the maximum possible cost'
   initial.stamina = 4;
   assert.equal(moveHero(initial, 1, 0, () => { throw new Error('Must not roll before accepting'); }).state, initial);
 });
+
+for (const animal of ['turtle', 'rabbit', 'deer', 'boar', 'falcon'] as const) {
+  test(`${animal} reports only newly revealed tiles for its particle and sound feedback`, () => {
+    const initial = state({ visual: visual(animal) });
+    initial.tiles.push(tile(2, { discovered: false }), tile(3, { discovered: false }),
+      tile(4, { discovered: false }), tile(5, { discovered: false }));
+    const before = structuredClone(initial);
+    const result = moveHero(initial, 1, 0);
+    assert.deepEqual(result.revealedTileIds, animal === 'falcon' ? ['2-0', '3-0', '4-0'] : ['2-0', '3-0']);
+    assert.equal(result.animation, 'scout');
+    assert.deepEqual(initial, before);
+    assert.ok(result.revealedTileIds!.every(id => result.state.tiles.find(t => t.id === id)!.discovered));
+    const returned = moveHero(result.state, 0, 0).state;
+    assert.equal(moveHero(returned, 1, 0).revealedTileIds, undefined, 'consumed animals cannot repeat feedback');
+  });
+}
+test('animal reveal feedback is absent for rejected moves or an already revealed area', () => {
+  const initial = state({ visual: visual('falcon') });
+  assert.equal(moveHero(initial, 1, 0).revealedTileIds, undefined);
+  initial.tiles.push(tile(2, { discovered: false }));
+  initial.stamina = 0;
+  assert.equal(moveHero(initial, 1, 0).revealedTileIds, undefined);
+  initial.stamina = 20;
+  assert.equal(moveHero(initial, 3, 0).revealedTileIds, undefined);
+});
+test('ordinary movement, fish and survey props do not trigger animal reveal feedback', () => {
+  for (const id of [undefined, 'fish', 'roadSign'] as const) {
+    const initial = state(id ? { visual: visual(id) } : {});
+    initial.tiles.push(tile(2, { discovered: false }));
+    assert.equal(moveHero(initial, 1, 0).revealedTileIds, undefined);
+  }
+});

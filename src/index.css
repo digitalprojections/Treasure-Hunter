@@ -234,3 +234,53 @@ body,
 @media (prefers-reduced-motion: reduce) {
   .notice-repeat { animation: none; border-color: currentColor; }
 }
+
+/* A local burst above the departing fog; it never intercepts map input. */
+.tile-reveal {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(circle, rgb(167 243 208 / 38%), transparent 70%);
+  animation: tile-reveal-fade 1100ms ease-out both;
+}
+.tile-reveal-ring {
+  position: absolute;
+  inset: 12%;
+  border: 2px solid #a7f3d0;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #5eead4, inset 0 0 8px rgb(253 230 138 / 65%);
+  animation: tile-reveal-ring 850ms ease-out both;
+}
+.tile-reveal-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px;
+  border-radius: 1px;
+  background: #fde68a;
+  box-shadow: 0 0 6px #fbbf24;
+  animation: tile-reveal-spark 750ms ease-out both;
+  animation-delay: var(--spark-delay);
+}
+.tile-reveal-spark:nth-child(odd) { background: #99f6e4; box-shadow: 0 0 6px #5eead4; }
+@keyframes tile-reveal-fade {
+  0%, 20% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes tile-reveal-ring {
+  0% { transform: scale(.2); opacity: .9; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+@keyframes tile-reveal-spark {
+  0% { transform: translate(0, 0) scale(.3) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(var(--spark-x), var(--spark-y)) scale(.4) rotate(100deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-reveal-spark { display: none; }
+  .tile-reveal-ring { animation: none; opacity: .6; }
+}

@@ -1,5 +1,5 @@
 export const musicScenes = ['menu', 'play', 'victory', 'defeat'] as const;
-export const soundEvents = ['walk', 'attack', 'collect', 'hit', 'scout', 'escape', 'warning', 'rest'] as const;
+export const soundEvents = ['walk', 'attack', 'collect', 'hit', 'scout', 'escape', 'warning', 'rest', 'reveal'] as const;
 export type MusicScene = typeof musicScenes[number];
 export type SoundEvent = typeof soundEvents[number];
 export const musicEvents = ['combat', 'discovery', 'relic', 'setback', 'rest', 'victory'] as const;

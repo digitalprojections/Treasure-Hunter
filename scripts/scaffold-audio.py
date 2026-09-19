@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1] / "assets"
 GROUPS = {
     "music": ("menu", "play", "victory", "defeat"),
-    "sounds": ("walk", "attack", "collect", "hit", "scout", "escape", "warning", "rest"),
+    "sounds": ("walk", "attack", "collect", "hit", "scout", "escape", "warning", "rest", "reveal"),
 }
 for group, events in GROUPS.items():
     for event in events:
