@@ -57,8 +57,8 @@ button.onclick = async () => {
       const render = () => flushSync(() => root.render(
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
           {result.state.tiles.map(tile => <div key={tile.id} data-tile-id={tile.id}
-            className={kind === 'relic' && revealing.has(tile.id) ? "tile-with-relic-effect" : undefined}
-            style={{ position: 'relative', aspectRatio: '1', background: tile.discovered ? '#356957' : '#1e293b', overflow: kind === 'relic' && revealing.has(tile.id) ? 'visible' : 'hidden' }}>
+            className={(kind === 'relic' || kind === 'treasure') && revealing.has(tile.id) ? "tile-with-discovery-effect" : undefined}
+            style={{ position: 'relative', aspectRatio: '1', background: tile.discovered ? '#356957' : '#1e293b', overflow: (kind === 'relic' || kind === 'treasure') && revealing.has(tile.id) ? 'visible' : 'hidden' }}>
             {tile.visual?.label}
             {revealing.has(tile.id) && <TileRevealParticles kind={kind} onComplete={() => { revealing.delete(tile.id); render(); }} />}
           </div>)}
@@ -70,11 +70,11 @@ button.onclick = async () => {
       assert(effects.length === expected, animal + ': particle tile mismatch');
       assert(effects.every(element => getComputedStyle(element).pointerEvents === 'none'), 'Particles intercept input');
       assert(document.querySelectorAll('.tile-reveal-spark').length === expected * (kind === 'regular' ? 0 : 8), 'Wrong animation style');
-      if (kind === 'relic') {
+      if (kind === 'relic' || kind === 'treasure') {
         const effect = effects[0], tile = effect.parentElement!;
-        assert(effect.getBoundingClientRect().width >= tile.getBoundingClientRect().width * 2, 'Relic effect is too small');
-        assert(getComputedStyle(tile).overflow === 'visible', 'Relic effect is clipped');
-        assert(parseFloat(getComputedStyle(effect).animationDuration) >= 2.4, 'Relic effect is too brief');
+        assert(effect.getBoundingClientRect().width >= tile.getBoundingClientRect().width * 2.5, 'Reward effect is too small');
+        assert(getComputedStyle(tile).overflow === 'visible', 'Reward effect is clipped');
+        assert(parseFloat(getComputedStyle(effect).animationDuration) === 1.2, 'Reward effect should finish in 1.2 seconds');
       }
       synth.setVolume(0.65); synth.play(reward ? 'collect' : kind === 'special' ? 'reveal' : 'walk');
       await delay(160);
@@ -82,7 +82,7 @@ button.onclick = async () => {
       analyser.getFloatTimeDomainData(samples);
       const rms = Math.sqrt(samples.reduce((sum, sample) => sum + sample ** 2, 0) / samples.length);
       assert(rms > 0.0001, animal + ': reveal chime produced no signal');
-      await delay(kind === 'relic' ? 2500 : reward ? 1600 : 1200);
+      await delay(kind === 'gem' ? 1600 : 1250);
       assert(document.querySelectorAll('.tile-reveal').length === 0, animal + ': particles did not clean up');
       results.push({ source: animal, revealed: expected, cleanup: 'PASS', soundRms: rms });
       output.textContent = JSON.stringify({ result: 'RUNNING', results }, null, 2);

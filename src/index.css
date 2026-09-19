@@ -343,43 +343,48 @@ body,
   .discovery-sigil, .discovery-emblem { animation: none; opacity: .8; }
 }
 
-/* Relic discoveries remain anchored to the tile but extend clearly above the map. */
-.tile-with-relic-effect { overflow: visible; z-index: 42; }
-.tile-discovery.tile-reveal-relic {
-  inset: -60%;
+/* Quick, generous reward bursts surround the hero instead of covering it. */
+.tile-with-discovery-effect { overflow: visible; z-index: 42; }
+.tile-current-hero { z-index: 43; }
+.tile-discovery:is(.tile-reveal-relic, .tile-reveal-treasure) {
+  inset: -80%;
   overflow: visible;
   color: #ffe8a6;
-  background: radial-gradient(circle, rgb(255 211 112 / 55%), rgb(207 139 37 / 22%) 42%, transparent 72%);
-  animation: relic-reveal-hold 2400ms ease-out both;
+  background: radial-gradient(circle, transparent 12%, rgb(255 211 112 / 42%) 32%, rgb(207 139 37 / 18%) 48%, transparent 72%);
+  animation: reward-burst 1200ms ease-out both;
 }
-.tile-reveal-relic .discovery-sigil {
+:is(.tile-reveal-relic, .tile-reveal-treasure) .discovery-sigil {
   stroke-width: 1.8;
   filter: drop-shadow(0 0 6px #e6bb65);
-  animation: relic-sigil 2300ms ease-out both;
+  animation: reward-sigil 1100ms ease-out both;
 }
-.tile-reveal-relic .discovery-emblem { animation-duration: 2300ms; filter: drop-shadow(0 0 9px #ffe1a0); }
-.tile-reveal-relic .discovery-emblem svg { width: 36px; height: 36px; }
-.tile-reveal-relic .tile-reveal-spark {
+:is(.tile-reveal-relic, .tile-reveal-treasure) .discovery-emblem {
+  translate: 0 -26%;
+  animation-duration: 1050ms;
+  filter: drop-shadow(0 0 9px #ffe1a0);
+}
+:is(.tile-reveal-relic, .tile-reveal-treasure) .discovery-emblem svg { width: 36px; height: 36px; }
+:is(.tile-reveal-relic, .tile-reveal-treasure) .tile-reveal-spark {
   width: 3px; height: 3px;
-  animation: relic-mote 1950ms ease-out both;
+  animation: reward-mote 950ms ease-out both;
   animation-delay: var(--spark-delay);
 }
-@keyframes relic-reveal-hold {
+@keyframes reward-burst {
   0% { opacity: 0; }
-  12%, 60% { opacity: 1; }
+  12%, 28% { opacity: 1; }
   100% { opacity: 0; }
 }
-@keyframes relic-sigil {
-  0% { transform: scale(.55) rotate(-22deg); opacity: 0; }
-  18%, 62% { opacity: 1; }
-  100% { transform: scale(1.08) rotate(16deg); opacity: 0; }
+@keyframes reward-sigil {
+  0% { transform: scale(.6) rotate(-22deg); opacity: 0; }
+  18%, 30% { opacity: 1; }
+  100% { transform: scale(1.12) rotate(16deg); opacity: 0; }
 }
-@keyframes relic-mote {
+@keyframes reward-mote {
   0% { transform: translate(calc(var(--spark-x) * .4), 12px); opacity: 0; }
-  15%, 40% { opacity: 1; }
-  100% { transform: translate(calc(var(--spark-x) * 2), calc(var(--spark-y) * 2 - 25px)); opacity: 0; }
+  15%, 25% { opacity: 1; }
+  100% { transform: translate(calc(var(--spark-x) * 2.4), calc(var(--spark-y) * 2.4 - 25px)); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tile-reveal-relic .discovery-sigil { animation: none; opacity: 1; }
-  .tile-reveal-relic .tile-reveal-spark { display: none; }
+  :is(.tile-reveal-relic, .tile-reveal-treasure) .discovery-sigil { animation: none; opacity: 1; }
+  :is(.tile-reveal-relic, .tile-reveal-treasure) .tile-reveal-spark { display: none; }
 }

@@ -981,7 +981,8 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, revealEffe
       whileHover={tile.discovered ? { scale: 0.98, backgroundColor: 'rgba(255,255,255,0.05)' } : {}}
       className={cn(
         "relative cursor-pointer aspect-square transition-all duration-700 group",
-        revealEffect?.kind === 'relic' ? "tile-with-relic-effect" : "overflow-hidden",
+        (revealEffect?.kind === 'relic' || revealEffect?.kind === 'treasure') ? "tile-with-discovery-effect" : "overflow-hidden",
+        isCurrent && "tile-current-hero",
         !tile.discovered && "bg-slate-800"
       )}
     >
@@ -1082,7 +1083,7 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, revealEffe
             data-combat={combat ? 'hero' : undefined}
             animate={combat ? { x: [0, combat.dx * 4, 0], y: [0, combat.dy * 4, 0] } : getPlayerAnimationMotion(playerAnimation)}
             transition={{ duration: 0.28, ease: 'easeOut', repeat: combat ? 3 : 0 }}
-            className="absolute inset-0 z-30 flex items-center justify-center overflow-visible"
+            className="absolute inset-0 z-50 flex items-center justify-center overflow-visible"
           >
             <div data-layer="hero" className="relative h-full w-full">
               <SpriteBox
