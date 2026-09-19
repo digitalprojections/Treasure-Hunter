@@ -131,6 +131,13 @@ export function moveHero(state: GameState, x: number, y: number, random = Math.r
   for (const t of next.tiles) if (Math.abs(t.x - next.playerPos.x) <= radius && Math.abs(t.y - next.playerPos.y) <= radius) t.discovered = true;
   const revealed = newlyRevealedTiles(state.tiles, next.tiles);
   if (revealed.length) result.revealedTileIds = revealed;
+  // Keep unchanged tile references so memoized renderers can skip them.
+  next.tiles = next.tiles.map((tile,index)=>{
+    const previous=state.tiles[index];
+    return Object.keys(tile).every(key=>Object.is(tile[key as keyof Tile],previous[key as keyof Tile])) &&
+      Object.keys(previous).every(key=>Object.is(tile[key as keyof Tile],previous[key as keyof Tile])) ? previous : tile;
+  });
+  if(next.tiles.every((tile,index)=>tile===state.tiles[index]))next.tiles=state.tiles;
   if (result.achievement) result.tone = 'success';
   return result;
 }

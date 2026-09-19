@@ -1,3 +1,5 @@
+import { useSpriteClock } from './useSpriteClock';
+import { recordTileRender } from './utils/renderDiagnostics';
 import { ShipNavigation } from './components/ShipNavigation';
 import { needsCameraFollow } from './utils/mapCamera';
 import { discoveryRewardEffect } from './utils/rewardFeedback';
@@ -9,7 +11,6 @@ import { musicCueForOutcome } from './utils/musicFlow';
 import { statSymbols } from './data/statSymbols';
 import { useRandomIdle } from './useRandomIdle';
 import { getActorIdleDuration } from './utils/actorIdle';
-import { createIdlePlayback, advanceIdlePlayback } from './utils/idlePlayback';
 import { version as appVersion } from '../package.json';
 import { moveHero, describeInteraction, TRAPPED_CACHE } from './utils/interactions';
 /**
@@ -227,9 +228,7 @@ export default function App() {
   const [cacheOffer, setCacheOffer] = useState<{ x: number; y: number; kind: 'cache' | 'marker' } | null>(null);
   const [loading, setLoading] = useState(true);
   const [pointsEarnedToday, setPointsEarnedToday] = useState(0);
-  const [spriteClockMs, setSpriteClockMs] = useState(0);
   const [playerAnimation, setPlayerAnimation] = useState<CharacterAnimationState>('idle');
-  const [idleElapsedMs, setIdleElapsedMs] = useState(0);
   const [animationRevision, setAnimationRevision] = useState(0);
   const [combat, setCombat] = useState<{ targetId: string; startedAt: number; dx: number; dy: number } | null>(null);
   const combatTimeoutRef = useRef<number | null>(null);
@@ -238,15 +237,6 @@ export default function App() {
   const sharedApiSessionIdRef = useRef<string | null>(null);
   const [sharedApiSessionId, setSharedApiSessionId] = useState<string | null>(null);
   const playerAnimationTimeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const startedAt = performance.now();
-    const intervalId = window.setInterval(() => {
-      setSpriteClockMs(performance.now() - startedAt);
-    }, 120);
-
-    return () => window.clearInterval(intervalId);
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -274,22 +264,6 @@ export default function App() {
       }, duration);
     }
   }, []);
-
-  useEffect(() => {
-    setIdleElapsedMs(0);
-    const idle = activeCharacter.spriteBoxes.idle;
-    if (loading || gameState?.isGameOver || playerAnimation !== 'idle' || idle.kind !== 'looper' || idle.frames.length < 2) return;
-    const durationMs = idle.frames.length * idle.frameMs;
-    let playback = createIdlePlayback(performance.now());
-    const timer = window.setInterval(() => {
-      const now = performance.now();
-      playback = document.hidden
-        ? createIdlePlayback(now)
-        : advanceIdlePlayback(playback, now, durationMs);
-      setIdleElapsedMs(playback.elapsedMs);
-    }, 60);
-    return () => window.clearInterval(timer);
-  }, [playerAnimation, animationRevision, loading, gameState?.isGameOver]);
 
   // Initialize Game
   const startNewGame = useCallback(() => {
@@ -519,6 +493,10 @@ export default function App() {
     }
   };
 
+  const moveHandlerRef = useRef(handleMove);
+  React.useLayoutEffect(()=>{moveHandlerRef.current=handleMove;});
+  const handleTileMove = useCallback((x:number,y:number)=>moveHandlerRef.current(x,y),[]);
+
   const chargeSkill = (state: GameState, skill: CharacterSkill): GameState => {
     const chargedState = spendSkillCost(state, skill);
     return {
@@ -643,9 +621,10 @@ export default function App() {
     }
   };
 
+  const terrainLayoutKey=gameState?.tiles.map(t=>`${t.id}:${t.x}:${t.y}:${t.type}`).join('|');
   const terrainClassifications = useMemo(
     () => gameState ? classifyTerrainTiles(gameState.tiles) : new Map<string, TerrainTileClassification>(),
-    [gameState?.tiles],
+    [terrainLayoutKey],
   );
 
   if (loading) return <div className="flex items-center justify-center h-[100dvh] bg-[#0F172A] text-slate-400 font-mono text-xs tracking-widest uppercase animate-pulse">Initializing Expedition Data...</div>;
@@ -863,12 +842,13 @@ export default function App() {
                 onRevealComplete={finishTileReveal}
                 terrain={terrainClassifications.get(tile.id)}
                 isCurrent={gameState.playerPos.x === tile.x && gameState.playerPos.y === tile.y}
-                idleElapsedMs={idleElapsedMs}
-                playerAnimation={playerAnimation}
-                playerFacing={playerFacing}
-                combat={combat}
-                spriteClockMs={spriteClockMs}
-                onClick={() => handleMove(tile.x, tile.y)}
+                idleElapsedMs={0}
+                playerAnimation={gameState.playerPos.x===tile.x&&gameState.playerPos.y===tile.y?playerAnimation:'idle'}
+                animationRevision={gameState.playerPos.x===tile.x&&gameState.playerPos.y===tile.y?animationRevision:0}
+                playerFacing={gameState.playerPos.x===tile.x&&gameState.playerPos.y===tile.y?playerFacing:'right'}
+                combat={combat&&(combat.targetId===tile.id||(gameState.playerPos.x===tile.x&&gameState.playerPos.y===tile.y))?combat:null}
+                spriteClockMs={0}
+                onMove={handleTileMove}
               />
             ))}
           </div>
@@ -957,7 +937,9 @@ interface TileComponentProps {
   playerFacing: HorizontalFacing;
   spriteClockMs: number;
   combat: { targetId: string; startedAt: number; dx: number; dy: number } | null;
-  onClick: () => void;
+  onClick?: () => void;
+  onMove?: (x:number,y:number) => void;
+  animationRevision?: number;
 }
 
 const LegendItem = ({ label, color, icon: Icon, spriteBox }: { label: string, color: string, icon?: any, spriteBox?: SpriteBoxModule }) => (
@@ -988,7 +970,9 @@ function getPlayerAnimationMotion(animation: CharacterAnimationState) {
   }
 }
 
-export const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, extractionReady, revealEffect, onRevealComplete, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, combat, onClick }) => {
+export const TileComponent = React.memo(function TileComponent({ tile, terrain, extractionReady, revealEffect, onRevealComplete, isCurrent, idleElapsedMs: externalIdleMs, playerAnimation, playerFacing, spriteClockMs: externalClockMs, combat, onClick, onMove, animationRevision=0 }: TileComponentProps) {
+  recordTileRender(tile.id);
+  const activate=()=>onMove?onMove(tile.x,tile.y):onClick?.();
   const [isHovered, setIsHovered] = useState(false);
   const getTileColor = (type: TileType) => {
     switch (type) {
@@ -1019,6 +1003,13 @@ export const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, ext
   });
   const actorIdleDuration = getActorIdleDuration(tile, visualSpriteBox, isCombatTarget);
   const actorIdleElapsedMs = useRandomIdle(actorIdleDuration, `${tile.id}:${tile.visual?.assetKey ?? tile.visual?.id}`);
+  const heroIdle = activeCharacter.spriteBoxes.idle;
+  const heroIdleMs=useRandomIdle(isCurrent&&playerAnimation==='idle'&&heroIdle.kind==='looper'?heroIdle.frames.length*heroIdle.frameMs:0,`hero:${tile.id}:${animationRevision}`);
+  const animatedObject=tile.discovered&&!tile.visualConsumed&&visualSpriteBox?.kind==='looper'&&actorIdleDuration===0;
+  const animatedEntity=tile.discovered&&entitySpriteBox?.kind==='looper'&&!tile.entityFound;
+  const needsClock=isCombatTarget||(isCurrent&&playerAnimation!=='idle')||animatedObject||animatedEntity||terrainSpriteBox.kind==='looper';
+  const spriteClockMs=useSpriteClock(!!needsClock,`${tile.id}:${animationRevision}:${playerAnimation}:${combat?.startedAt??0}`)||externalClockMs;
+  const idleElapsedMs=isCurrent?heroIdleMs:externalIdleMs;
   const tileLabel = tile.type.replace('_', ' ');
   const edgeClassName = terrain?.exposedEdges.map((edge) => `terrain-edge-${edge}`);
   const isWaterTerrain = tile.type === TileType.WATER || tile.type === TileType.DEEP_WATER;
@@ -1038,8 +1029,8 @@ export const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, ext
       aria-label={tile.discovered ? `${tileLabel}: ${describeInteraction(tile)}` : 'Explore unknown terrain'}
       title={tile.discovered ? describeInteraction(tile) : 'Explore unknown terrain'}
       data-tile-id={tile.id}
-      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick(); } }}
-      onClick={onClick}
+      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(); } }}
+      onClick={activate}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       whileHover={tile.discovered ? { scale: 0.98, backgroundColor: 'rgba(255,255,255,0.05)' } : {}}
@@ -1167,4 +1158,4 @@ export const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, ext
       </AnimatePresence>
     </motion.div>
   );
-};
+});

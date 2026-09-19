@@ -203,3 +203,18 @@ test('revealing an encounter before entry reports its tile for special effects',
   const initial = state({ entity: EntityType.TRAP, discovered: false });
   assert.deepEqual(moveHero(initial, 1, 0).revealedTileIds, ['1-0']);
 });
+
+test('walking across known terrain preserves the entire tile array', () => {
+  const initial=state();
+  const result=moveHero(initial,1,0);
+  assert.equal(result.state.tiles,initial.tiles);
+});
+test('a discovery replaces only changed tiles and does not mutate the old map', () => {
+  const initial=state({entity:EntityType.TREASURE});
+  initial.tiles.push(tile(8));
+  const result=moveHero(initial,1,0);
+  assert.equal(result.state.tiles[0],initial.tiles[0]);
+  assert.equal(result.state.tiles[2],initial.tiles[2]);
+  assert.notEqual(result.state.tiles[1],initial.tiles[1]);
+  assert.equal(initial.tiles[1].entityFound,undefined);
+});
