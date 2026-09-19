@@ -1,7 +1,7 @@
 {
   "name": "treasure-hunter",
   "private": true,
-  "version": "0.0.51",
+  "version": "0.0.52",
   "type": "module",
   "scripts": {
     "test:music": "tsx --test src/utils/musicPlayer.test.ts src/utils/musicTransitions.test.ts src/utils/musicFlow.test.ts src/utils/audio.test.ts",
