@@ -444,9 +444,9 @@ body,
   .map-area > div:first-child:not(.treasure-map-board) { display: none; }
   .map-area .treasure-map-board { --board-size: max(600px, calc(100vw - 32px)); }
   .game-console { grid-row: 2; }
-  .game-console > div:first-child { flex: none; padding: 4px 8px; height: auto; }
+  .game-console > .console-log { flex: none; padding: 4px 8px; height: auto; }
   .game-console h3 { display: none; }
-  .game-console > div:first-child > div { flex: none; overflow: visible; padding-right: 0; }
+  .game-console > .console-log > div { flex: none; overflow: visible; padding-right: 0; }
   .game-console .expedition-message { padding: 5px 7px; margin: 0; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
   .game-console .expedition-message ~ .expedition-message { display: none; }
   .console-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; padding: 4px 6px max(4px, env(safe-area-inset-bottom)); }
@@ -493,7 +493,7 @@ body,
 }
 @media (min-width: 600px) and (max-width: 1023px) {
   .game-console { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-  .game-console > div:first-child { min-width: 0; border-bottom: 0; padding: 4px 6px; }
+  .game-console > .console-log { min-width: 0; border-bottom: 0; padding: 4px 6px; }
   .console-actions { padding-left: 0; }
 }
 

@@ -1,3 +1,4 @@
+import { ExpeditionOracle } from './components/ExpeditionOracle';
 import { createEffectCleanup, removeCompletedEffects } from './utils/effectCleanup';
 import { useSpriteClock } from './useSpriteClock';
 import { recordTileRender } from './utils/renderDiagnostics';
@@ -857,7 +858,8 @@ export default function App() {
         <ShipNavigation viewport={mapViewport} enabled={!!gameState && gameState.stats.relicsCollected >= REQUIRED_RELIC_COUNT && !gameState.isGameOver && !mobilePanelOpen && !audioSettingsOpen} />
         {/* Bottom Console / Log (Combined better) */}
         <aside className="game-console min-h-0 flex flex-col bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 shadow-2xl z-10">
-          <div className="min-h-0 flex flex-1 flex-col p-2 sm:p-3 lg:p-6 border-b border-slate-800">
+          {gameState && <ExpeditionOracle state={gameState} />}
+          <div className="console-log min-h-0 flex flex-1 flex-col p-2 sm:p-3 lg:p-6 border-b border-slate-800">
             <h3 className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 lg:mb-4">Expedition Log</h3>
             <div className="min-h-0 flex-1 overflow-y-auto pr-2 custom-scrollbar font-mono text-[11px]">
               {logs.map((log) => (
