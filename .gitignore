@@ -7,3 +7,12 @@ coverage/
 .env*
 !.env.example
 *.pem
+
+# Python asset utilities
+__pycache__/
+*.py[cod]
+tmp/
+
+# Local tooling caches
+.vite/
+*.tsbuildinfo

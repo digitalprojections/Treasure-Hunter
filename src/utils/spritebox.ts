@@ -13,6 +13,8 @@ export interface StaticSpriteBox {
   kind: 'static';
   label: string;
   assets: readonly SpriteBoxAsset[];
+  /** Explicit upgrade numbers aligned with assets; absent means seeded variants. */
+  levels?: readonly number[];
 }
 
 export interface LooperSpriteBox {
@@ -27,7 +29,7 @@ export type SpriteBoxModule = StaticSpriteBox | LooperSpriteBox;
 export type CharacterSpriteBoxSet = Record<CharacterAnimationState, SpriteBoxModule>;
 
 const FILE_NAME_PATTERN = /([^\\/]+?)(?:\.[a-z0-9]+)?$/i;
-const FRAME_SUFFIX_PATTERN = /(?:^|[_-])(\d+)$/;
+const FRAME_SUFFIX_PATTERN = /(?:^|[_-])(\d+)$|\((\d+)\)$/;
 
 export function getSpriteAssetName(pathOrName: string) {
   return FILE_NAME_PATTERN.exec(pathOrName)?.[1] ?? pathOrName;
@@ -35,7 +37,8 @@ export function getSpriteAssetName(pathOrName: string) {
 
 export function getSpriteFrameIndex(pathOrName: string) {
   const name = getSpriteAssetName(pathOrName);
-  const frame = FRAME_SUFFIX_PATTERN.exec(name)?.[1];
+  const match = FRAME_SUFFIX_PATTERN.exec(name);
+  const frame = match?.[1] ?? match?.[2];
   return frame ? Number.parseInt(frame, 10) : 0;
 }
 
@@ -77,12 +80,18 @@ export function getSeededIndex(seed: string, length: number) {
   return hash % length;
 }
 
-export function resolveSpriteBoxAsset(spriteBox: SpriteBoxModule, seed: string, elapsedMs = 0) {
+export function resolveSpriteBoxAsset(spriteBox: SpriteBoxModule, seed: string, elapsedMs = 0, level = 1) {
   if (spriteBox.kind === 'looper') {
     const frame = Math.floor(elapsedMs / spriteBox.frameMs) % spriteBox.frames.length;
     return spriteBox.frames[frame];
   }
 
+  if (spriteBox.levels) {
+    const requested = Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1;
+    let index = 0;
+    spriteBox.levels.forEach((available, i) => { if (available <= requested) index = i; });
+    return spriteBox.assets[index];
+  }
   return spriteBox.assets[getSeededIndex(seed, spriteBox.assets.length)];
 }
 

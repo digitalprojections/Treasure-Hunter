@@ -1,4 +1,5 @@
 import { characterAnimations } from './characterAnimations';
+import { getObjectSpriteBox } from './objectAssets';
 import { EntityType, TileType, TileVisualId } from '../types';
 import {
   CharacterSpriteBoxSet,
@@ -44,7 +45,7 @@ function looperBox(id: string, label: string, entries: readonly [readonly [strin
 }
 
 function animationEntries(frames: readonly string[], pathPrefix: string) {
-  return frames.map((frame, index) => [frame, `${pathPrefix}_${String(index + 1).padStart(3, '0')}`] as const) as [
+  return (frames?.length ? frames : [heroCutoutAssets.mage]).map((frame, index) => [frame, `${pathPrefix}_${String(index + 1).padStart(3, '0')}`] as const) as [
     readonly [string, string],
     ...readonly [string, string][],
   ];
@@ -70,30 +71,13 @@ export const entitySpriteBoxes: Partial<Record<EntityType, SpriteBoxModule>> = {
 
 export const visualSpriteBoxes: Record<TileVisualId, SpriteBoxModule> = {
   altar: staticBox('visual.altar', 'Altar', [[structureAssets.altar, 'structures/altar']]),
-  barricade: staticBox('visual.barricade', 'Barricade', [
-    [barrierAssets.barricade, 'barriers/barricade'],
-    [barrierAssets.barricade1, 'barriers/barricade_001'],
-    [barrierAssets.barricade2, 'barriers/barricade_002'],
-    [barrierAssets.barricade3, 'barriers/barricade_003'],
-    [barrierAssets.barricade4, 'barriers/barricade_004'],
-    [barrierAssets.barricade5, 'barriers/barricade_005'],
-  ]),
+  barricade: { ...getObjectSpriteBox('barriers/barricade'), id: 'visual.barricade', label: 'Barricade' },
   boar: staticBox('visual.boar', 'Boar', [[wildlifeAssets.boar, 'wildlife/boar']]),
   cactus: staticBox('visual.cactus', 'Cactus', [[terrainAssets.cactus, 'terrain/cactus']]),
-  cannon: looperBox('visual.cannon', 'Cannon', [
-    [defenseAssets.cannon1, 'defenses/cannon_001'],
-    [defenseAssets.cannon2, 'defenses/cannon_002'],
-    [defenseAssets.cannon3, 'defenses/cannon_003'],
-    [defenseAssets.cannon4, 'defenses/cannon_004'],
-  ]),
+  cannon: defenseAssets.cannon,
   deer: staticBox('visual.deer', 'Deer', [[wildlifeAssets.deer, 'wildlife/deer']]),
   falcon: staticBox('visual.falcon', 'Falcon', [[wildlifeAssets.falcon, 'wildlife/falcon']]),
-  fireTurret: looperBox('visual.fire_turret', 'Fire Turret', [
-    [defenseAssets.fireTurret1, 'defenses/fire_turret_001'],
-    [defenseAssets.fireTurret2, 'defenses/fire_turret_002'],
-    [defenseAssets.fireTurret3, 'defenses/fire_turret_003'],
-    [defenseAssets.fireTurret4, 'defenses/fire_turret_004'],
-  ], 220),
+  fireTurret: defenseAssets.fireTurret,
   fish: staticBox('visual.fish', 'Fish', [[wildlifeAssets.fish, 'wildlife/fish']]),
   flower: staticBox('visual.flower', 'Flowers', [[terrainAssets.flower, 'terrain/flower']]),
   gold: staticBox('visual.gold', 'Gold Cache', [[resourceAssets.gold, 'resources/gold']]),
@@ -103,12 +87,7 @@ export const visualSpriteBoxes: Record<TileVisualId, SpriteBoxModule> = {
   ironGate: staticBox('visual.iron_gate', 'Iron Gate', [[barrierAssets.ironGate, 'barriers/iron_gate']]),
   key: staticBox('visual.key', 'Key Marker', [[symbolAssets.key, 'symbols/key_symbol']]),
   magicGate: staticBox('visual.magic_gate', 'Magic Gate', [[barrierAssets.magicGate, 'barriers/magic_gate']]),
-  magicTurret: looperBox('visual.magic_turret', 'Magic Turret', [
-    [defenseAssets.magicTurret1, 'defenses/magic_turret_001'],
-    [defenseAssets.magicTurret2, 'defenses/magic_turret_002'],
-    [defenseAssets.magicTurret3, 'defenses/magic_turret_003'],
-    [defenseAssets.magicTurret4, 'defenses/magic_turret_004'],
-  ], 240),
+  magicTurret: defenseAssets.magicTurret,
   orc: staticBox('visual.orc', 'Orc Camp', [[enemyAssets.orc, 'enemies/orc']]),
   potion: staticBox('visual.potion', 'Potion Sign', [[symbolAssets.potion, 'symbols/potion_symbol']]),
   quest: staticBox('visual.quest', 'Quest Marker', [[symbolAssets.quest, 'symbols/quest']]),
@@ -124,12 +103,7 @@ export const visualSpriteBoxes: Record<TileVisualId, SpriteBoxModule> = {
   stump: staticBox('visual.stump', 'Old Stump', [[terrainAssets.stump, 'terrain/stump']]),
   teleport: staticBox('visual.teleport', 'Teleport Circle', [[structureAssets.teleport, 'structures/teleport']]),
   troll: staticBox('visual.troll', 'Troll Path', [[enemyAssets.troll, 'enemies/troll']]),
-  turret: looperBox('visual.turret', 'Turret', [
-    [defenseAssets.turret1, 'defenses/turret_001'],
-    [defenseAssets.turret2, 'defenses/turret_002'],
-    [defenseAssets.turret3, 'defenses/turret_003'],
-    [defenseAssets.turret4, 'defenses/turret_004'],
-  ]),
+  turret: defenseAssets.turret,
   turtle: staticBox('visual.turtle', 'Turtle', [[wildlifeAssets.turtle, 'wildlife/turtle']]),
   village: staticBox('visual.village', 'Village', [[structureAssets.village, 'structures/village']]),
   waypoint: staticBox('visual.waypoint', 'Waypoint', [[symbolAssets.waypoint, 'symbols/waypoint_symbol']]),

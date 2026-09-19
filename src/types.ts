@@ -68,6 +68,11 @@ export type TileVisualId =
 export type TileVisualTone = 'ambient' | 'landmark' | 'threat' | 'resource' | 'wildlife';
 
 export interface TileVisual {
+  /** Optional discovered domain/type key; independent from gameplay behavior id. */
+  assetKey?: string;
+  action?: string;
+  /** One-based upgrade level; omitted in older saves means level 1. */
+  level?: number;
   id: TileVisualId;
   label: string;
   tone: TileVisualTone;

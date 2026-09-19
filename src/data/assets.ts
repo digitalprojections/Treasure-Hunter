@@ -1,102 +1,83 @@
+import { objectAssets, findAsset } from './objectAssets';
+import { resolveSpriteBoxAsset } from '../utils/spritebox';
 import { characterAnimations } from './characterAnimations';
 import { EntityType, TileType, TileVisualId } from '../types';
 
-import archerHero from '../../assets/heroes/archer/archer.png';
-import archerHeroCutout from '../../assets/heroes/archer/bg_removed__archer_.png';
-import engineerHero from '../../assets/heroes/engineer/engineer.png';
-import engineerHeroCutout from '../../assets/heroes/engineer/bg_removed__engineer.png';
-import explorerHero from '../../assets/heroes/explorer/explorer.png';
-import explorerHeroCutout from '../../assets/heroes/explorer/bg_removed__explorer_.png';
-import scoutHero from '../../assets/heroes/scout/scout.png';
-import scoutHeroCutout from '../../assets/heroes/scout/bg_removed__scout.png';
-import soldierHero from '../../assets/heroes/soldier/soldier.png';
-import soldierHeroCutout from '../../assets/heroes/soldier/bg_removed__soldier.png';
+const archerHero = findAsset('heroes/archer/archer.png');
+const archerHeroCutout = findAsset('heroes/archer/bg_removed__archer_.png');
+const engineerHero = findAsset('heroes/engineer/engineer.png');
+const engineerHeroCutout = findAsset('heroes/engineer/bg_removed__engineer.png');
+const explorerHero = findAsset('heroes/explorer/explorer.png');
+const explorerHeroCutout = findAsset('heroes/explorer/bg_removed__explorer_.png');
+const scoutHero = findAsset('heroes/scout/scout.png');
+const scoutHeroCutout = findAsset('heroes/scout/bg_removed__scout.png');
+const soldierHero = findAsset('heroes/soldier/soldier.png');
+const soldierHeroCutout = findAsset('heroes/soldier/bg_removed__soldier.png');
 
-import goblinEnemy from '../../assets/enemies/goblin.png';
-import harpyEnemy from '../../assets/enemies/harpy.png';
-import orcEnemy from '../../assets/enemies/orc.png';
-import skeletonEnemy from '../../assets/enemies/skeleton.png';
-import trollEnemy from '../../assets/enemies/troll.png';
-import wolfEnemy from '../../assets/enemies/wolf.png';
+const goblinEnemy = findAsset('enemies/goblin.png');
+const harpyEnemy = findAsset('enemies/harpy.png');
+const orcEnemy = findAsset('enemies/orc.png');
+const skeletonEnemy = findAsset('enemies/skeleton.png');
+const trollEnemy = findAsset('enemies/troll.png');
+const wolfEnemy = findAsset('enemies/wolf.png');
 
-import boarWildlife from '../../assets/wildlife/boar.png';
-import deerWildlife from '../../assets/wildlife/deer.png';
-import falconWildlife from '../../assets/wildlife/falcon.png';
-import fishWildlife from '../../assets/wildlife/fish.png';
-import rabbitWildlife from '../../assets/wildlife/rabbit.png';
-import turtleWildlife from '../../assets/wildlife/turtle.png';
+const boarWildlife = findAsset('wildlife/boar.png');
+const deerWildlife = findAsset('wildlife/deer.png');
+const falconWildlife = findAsset('wildlife/falcon.png');
+const fishWildlife = findAsset('wildlife/fish.png');
+const rabbitWildlife = findAsset('wildlife/rabbit.png');
+const turtleWildlife = findAsset('wildlife/turtle.png');
 
-import chestResource from '../../assets/resources/chest.png';
-import crystalResource from '../../assets/resources/crystal.png';
-import goldResource from '../../assets/resources/gold.png';
-import goldMineResource from '../../assets/resources/gold_mine.png';
-import stoneResource from '../../assets/resources/stone.png';
-import woodResource from '../../assets/resources/wood.png';
+const chestResource = findAsset('resources/chest.png');
+const crystalResource = findAsset('resources/crystal.png');
+const goldResource = findAsset('resources/gold.png');
+const goldMineResource = findAsset('resources/gold_mine.png');
+const stoneResource = findAsset('resources/stone.png');
+const woodResource = findAsset('resources/wood.png');
 
-import cactusTerrain from '../../assets/terrain/cactus.png';
-import desertTerrain from '../../assets/terrain/desert.png';
-import flowerTerrain from '../../assets/terrain/flower.png';
-import forestTerrain from '../../assets/terrain/forest.png';
-import mountainTerrain from '../../assets/terrain/mountain.png';
-import plainsTerrain from '../../assets/terrain/plains.png';
-import shallowWaterTerrain from '../../assets/terrain/shallow_water.png';
-import stumpTerrain from '../../assets/terrain/stump.png';
+const cactusTerrain = findAsset('terrain/cactus.png');
+const desertTerrain = findAsset('terrain/desert.png');
+const flowerTerrain = findAsset('terrain/flower.png');
+const forestTerrain = findAsset('terrain/forest.png');
+const mountainTerrain = findAsset('terrain/mountain.png');
+const plainsTerrain = findAsset('terrain/plains.png');
+const shallowWaterTerrain = findAsset('terrain/shallow_water.png');
+const stumpTerrain = findAsset('terrain/stump.png');
 
-import altarStructure from '../../assets/structures/altar.png';
-import portStructure from '../../assets/structures/port.png';
-import roadSignStructure from '../../assets/structures/road_sign.png';
-import ruinsStructure from '../../assets/structures/ruins.png';
-import teleportStructure from '../../assets/structures/teleport.png';
-import villageStructure from '../../assets/structures/village.png';
-import wellStructure from '../../assets/structures/well.png';
+const altarStructure = findAsset('structures/altar.png');
+const portStructure = findAsset('structures/port.png');
+const roadSignStructure = findAsset('structures/road_sign.png');
+const ruinsStructure = findAsset('structures/ruins.png');
+const teleportStructure = findAsset('structures/teleport.png');
+const villageStructure = findAsset('structures/village.png');
+const wellStructure = findAsset('structures/well.png');
 
-import barricadeBarrier from '../../assets/barriers/barricade.png';
-import barricade1Barrier from '../../assets/barriers/barricade1.png';
-import barricade2Barrier from '../../assets/barriers/barricade2.png';
-import barricade3Barrier from '../../assets/barriers/barricade3.png';
-import barricade4Barrier from '../../assets/barriers/barricade4.png';
-import barricade5Barrier from '../../assets/barriers/barricade5.png';
-import ironGateBarrier from '../../assets/barriers/iron_gate.png';
-import magicGateBarrier from '../../assets/barriers/magic_gate.png';
-import stoneBridgeBarrier from '../../assets/barriers/stone_bridge.png';
-import stoneGateBarrier from '../../assets/barriers/stone_gate.png';
-import woodBridgeBarrier from '../../assets/barriers/wood_bridge.png';
-import woodenGateBarrier from '../../assets/barriers/wooden_gate.png';
+const barricadeBarrier = findAsset('barriers/barricade.png');
+const ironGateBarrier = findAsset('barriers/iron_gate.png');
+const magicGateBarrier = findAsset('barriers/magic_gate.png');
+const stoneBridgeBarrier = findAsset('barriers/stone_bridge.png');
+const stoneGateBarrier = findAsset('barriers/stone_gate.png');
+const woodBridgeBarrier = findAsset('barriers/wood_bridge.png');
+const woodenGateBarrier = findAsset('barriers/wooden_gate.png');
 
-import cannon1Defense from '../../assets/defenses/cannon1.png';
-import cannon2Defense from '../../assets/defenses/cannon2.png';
-import cannon3Defense from '../../assets/defenses/cannon3.png';
-import cannon4Defense from '../../assets/defenses/cannon4.png';
-import fireTurret1Defense from '../../assets/defenses/fire_turret1.png';
-import fireTurret2Defense from '../../assets/defenses/fire_turret2.png';
-import fireTurret3Defense from '../../assets/defenses/fire_turret3.png';
-import fireTurret4Defense from '../../assets/defenses/fire_turret4.png';
-import magicTurret1Defense from '../../assets/defenses/magic_turret1.png';
-import magicTurret2Defense from '../../assets/defenses/magic_turret2.png';
-import magicTurret3Defense from '../../assets/defenses/magic_turret3.png';
-import magicTurret4Defense from '../../assets/defenses/magic_turret4.png';
-import turret1Defense from '../../assets/defenses/turret1.png';
-import turret2Defense from '../../assets/defenses/turret2.png';
-import turret3Defense from '../../assets/defenses/turret3.png';
-import turret4Defense from '../../assets/defenses/turret4.png';
 
-import bombSymbol from '../../assets/symbols/bomb_symbol.png';
-import dangerSymbol from '../../assets/symbols/danger.png';
-import discoveredSymbol from '../../assets/symbols/discovered_symbol.png';
-import fogSymbol from '../../assets/symbols/fog.png';
-import keySymbol from '../../assets/symbols/key_symbol.png';
-import potionSymbol from '../../assets/symbols/potion_symbol.png';
-import questSymbol from '../../assets/symbols/quest.png';
-import randomSymbol from '../../assets/symbols/random.png';
-import scrollSymbol from '../../assets/symbols/scroll_symbol.png';
-import starSymbol from '../../assets/symbols/star_symbol.png';
-import waypointSymbol from '../../assets/symbols/waypoint_symbol.png';
+const bombSymbol = findAsset('symbols/bomb_symbol.png');
+const dangerSymbol = findAsset('symbols/danger.png');
+const discoveredSymbol = findAsset('symbols/discovered_symbol.png');
+const fogSymbol = findAsset('symbols/fog.png');
+const keySymbol = findAsset('symbols/key_symbol.png');
+const potionSymbol = findAsset('symbols/potion_symbol.png');
+const questSymbol = findAsset('symbols/quest.png');
+const randomSymbol = findAsset('symbols/random.png');
+const scrollSymbol = findAsset('symbols/scroll_symbol.png');
+const starSymbol = findAsset('symbols/star_symbol.png');
+const waypointSymbol = findAsset('symbols/waypoint_symbol.png');
 
 export const heroAssets = {
   archer: archerHero,
   engineer: engineerHero,
   explorer: explorerHero,
-  mage: characterAnimations.heroes.mage.walk.frames[0].src,
+  mage: findAsset('heroes/mage/mage.png'),
   scout: scoutHero,
   soldier: soldierHero,
 } as const;
@@ -105,13 +86,13 @@ export const heroCutoutAssets = {
   archer: archerHeroCutout,
   engineer: engineerHeroCutout,
   explorer: explorerHeroCutout,
-  mage: characterAnimations.heroes.mage.walk.frames[0].src,
+  mage: findAsset('heroes/mage/mage.png'),
   scout: scoutHeroCutout,
   soldier: soldierHeroCutout,
 } as const;
 
 export const mageAnimationAssets = Object.fromEntries(
-  Object.entries(characterAnimations.heroes.mage).map(([state, clip]) => [state, clip.frames.map(frame => frame.src)]),
+  Object.entries(characterAnimations.heroes?.mage ?? {}).map(([state, clip]) => [state, clip.frames.map(frame => frame.src)]),
 );
 
 export const enemyAssets = {
@@ -164,11 +145,6 @@ export const structureAssets = {
 
 export const barrierAssets = {
   barricade: barricadeBarrier,
-  barricade1: barricade1Barrier,
-  barricade2: barricade2Barrier,
-  barricade3: barricade3Barrier,
-  barricade4: barricade4Barrier,
-  barricade5: barricade5Barrier,
   ironGate: ironGateBarrier,
   magicGate: magicGateBarrier,
   stoneBridge: stoneBridgeBarrier,
@@ -177,24 +153,10 @@ export const barrierAssets = {
   woodenGate: woodenGateBarrier,
 } as const;
 
-export const defenseAssets = {
-  cannon1: cannon1Defense,
-  cannon2: cannon2Defense,
-  cannon3: cannon3Defense,
-  cannon4: cannon4Defense,
-  fireTurret1: fireTurret1Defense,
-  fireTurret2: fireTurret2Defense,
-  fireTurret3: fireTurret3Defense,
-  fireTurret4: fireTurret4Defense,
-  magicTurret1: magicTurret1Defense,
-  magicTurret2: magicTurret2Defense,
-  magicTurret3: magicTurret3Defense,
-  magicTurret4: magicTurret4Defense,
-  turret1: turret1Defense,
-  turret2: turret2Defense,
-  turret3: turret3Defense,
-  turret4: turret4Defense,
-} as const;
+export const defenseAssets = Object.fromEntries(
+  Object.entries(objectAssets).filter(([key, set]) => key.startsWith('defenses/') && set.static)
+    .map(([key, set]) => [key.split('/')[1].replace(/_([a-z])/g, (_, c) => c.toUpperCase()), set.static]),
+);
 
 export const symbolAssets = {
   bomb: bombSymbol,
@@ -230,20 +192,13 @@ export const entityAssets: Partial<Record<EntityType, string>> = {
 
 export const visualAssetPools: Record<TileVisualId, readonly string[]> = {
   altar: [structureAssets.altar],
-  barricade: [
-    barrierAssets.barricade,
-    barrierAssets.barricade1,
-    barrierAssets.barricade2,
-    barrierAssets.barricade3,
-    barrierAssets.barricade4,
-    barrierAssets.barricade5,
-  ],
+  barricade: objectAssets['barriers/barricade']?.static?.assets.map(asset => asset.src) ?? [barrierAssets.barricade],
   boar: [wildlifeAssets.boar],
   cactus: [terrainAssets.cactus],
-  cannon: [defenseAssets.cannon1, defenseAssets.cannon2, defenseAssets.cannon3, defenseAssets.cannon4],
+  cannon: defenseAssets.cannon.assets.map(asset => asset.src),
   deer: [wildlifeAssets.deer],
   falcon: [wildlifeAssets.falcon],
-  fireTurret: [defenseAssets.fireTurret1, defenseAssets.fireTurret2, defenseAssets.fireTurret3, defenseAssets.fireTurret4],
+  fireTurret: defenseAssets.fireTurret.assets.map(asset => asset.src),
   fish: [wildlifeAssets.fish],
   flower: [terrainAssets.flower],
   gold: [resourceAssets.gold],
@@ -253,7 +208,7 @@ export const visualAssetPools: Record<TileVisualId, readonly string[]> = {
   ironGate: [barrierAssets.ironGate],
   key: [symbolAssets.key],
   magicGate: [barrierAssets.magicGate],
-  magicTurret: [defenseAssets.magicTurret1, defenseAssets.magicTurret2, defenseAssets.magicTurret3, defenseAssets.magicTurret4],
+  magicTurret: defenseAssets.magicTurret.assets.map(asset => asset.src),
   orc: [enemyAssets.orc],
   potion: [symbolAssets.potion],
   quest: [symbolAssets.quest],
@@ -269,7 +224,7 @@ export const visualAssetPools: Record<TileVisualId, readonly string[]> = {
   stump: [terrainAssets.stump],
   teleport: [structureAssets.teleport],
   troll: [enemyAssets.troll],
-  turret: [defenseAssets.turret1, defenseAssets.turret2, defenseAssets.turret3, defenseAssets.turret4],
+  turret: defenseAssets.turret.assets.map(asset => asset.src),
   turtle: [wildlifeAssets.turtle],
   village: [structureAssets.village],
   waypoint: [symbolAssets.waypoint],
@@ -280,7 +235,8 @@ export const visualAssetPools: Record<TileVisualId, readonly string[]> = {
   woodenGate: [barrierAssets.woodenGate],
 };
 
-export function getVisualAsset(id: TileVisualId, seed: string) {
+export function getVisualAsset(id: TileVisualId, seed: string, level = 1) {
+  if (defenseAssets[id]) return resolveSpriteBoxAsset(defenseAssets[id], seed, 0, level).src;
   const assets = visualAssetPools[id];
   let hash = 0;
 

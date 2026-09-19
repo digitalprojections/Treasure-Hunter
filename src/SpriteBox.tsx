@@ -6,6 +6,7 @@ interface SpriteBoxProps {
   spriteBox: SpriteBoxModule;
   seed: string;
   elapsedMs?: number;
+  level?: number;
   alt?: string;
   className?: string;
   imageClassName?: string;
@@ -16,12 +17,13 @@ export const SpriteBox: React.FC<SpriteBoxProps> = ({
   spriteBox,
   seed,
   elapsedMs = 0,
+  level = 1,
   alt,
   className,
   imageClassName,
   draggable = false,
 }) => {
-  const asset = resolveSpriteBoxAsset(spriteBox, seed, elapsedMs);
+  const asset = resolveSpriteBoxAsset(spriteBox, seed, elapsedMs, level);
 
   return (
     <div className={cn('h-full w-full', className)}>

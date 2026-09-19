@@ -1,4 +1,4 @@
-# Treasure Cartographer
+# Treasure Hunter
 
 A procedural exploration game where you play as an island explorer revealing a hidden map to find ancient relics and escape dangerous islands.
 
@@ -30,11 +30,11 @@ The island is covered in fog. You must move your explorer to reveal adjacent til
 ## 🛠️ Field Gear & Specials
 - **Scout ($50)**: Reveals a 5x5 zone around your explorer.
 - **Relic Survey ($100)**: Triangulates the location of one hidden relic and reveals its tile.
-- **Ancient Archives ($25)**: Consult the spirits (powered by Gemini AI) for a cryptic atmospheric clue about the nearest relic's location.
+- **Ancient Archives ($25)**: Consult the spirits for a cryptic atmospheric clue about the nearest relic's location.
 
 ## 🚀 Technical Configuration
 - **Backend**: Express server with Vite middleware.
-- **AI Integration**: Gemini 1.5 Flash for procedural clue generation.
+- **AI Integration**: Gemini for procedural clue generation.
 - **Authentication**: Firebase Google Sign-In for progress tracking.
 - **Persistence**: Firestore blueprint ready for multi-device sync.
 
@@ -62,3 +62,9 @@ Signed-in players can earn capped rewards from server-authenticated events:
 Set `POINTS_API_URL`, `POINTS_APP_ID`, `POINTS_APP_SECRET`,
 `FIREBASE_PROJECT_ID`, and the cap variables on the shared Battleship server,
 not in this static game bundle.
+
+## Branding verification
+
+Run `npm run check:branding` to check product names, page metadata, and version consistency before release.
+
+The hero rests between idle animations, playing one cycle after a random 4–10 second pause. Movement and skills interrupt idle playback.

@@ -1,3 +1,5 @@
+import { createIdlePlayback, advanceIdlePlayback } from './utils/idlePlayback';
+import { version as appVersion } from '../package.json';
 import { moveHero, describeInteraction } from './utils/interactions';
 /**
  * @license
@@ -25,11 +27,13 @@ import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } fr
 import { Tile, TileType, EntityType, GameState } from './types';
 import { generateIsland, getStartingPosition, REQUIRED_RELIC_COUNT } from './utils/mapGenerator';
 import { entitySpriteBoxes, symbolSpriteBoxes, tileTerrainSpriteBoxes, visualSpriteBoxes } from './data/spriteboxes';
+import { getObjectSpriteBox } from './data/objectAssets';
 import { activeCharacter } from './data/characters';
 import { SpriteBox } from './SpriteBox';
 import { CharacterAnimationState, getHorizontalFacingAfterMove, HorizontalFacing, SpriteBoxModule } from './utils/spritebox';
 import { canUseCharacterSkill, CharacterSkill, getSkillCostLabel, spendSkillCost, startSkillCooldown, tickSkillCooldowns } from './utils/characterSkills';
 import { classifyTerrainTiles, TerrainTileClassification } from './utils/terrainTiles';
+import { getTileAssetPresentation } from './utils/tileVisualPresentation';
 import { cn } from './utils/styles';
 import confetti from 'canvas-confetti';
 
@@ -124,6 +128,8 @@ export default function App() {
   const [pointsEarnedToday, setPointsEarnedToday] = useState(0);
   const [spriteClockMs, setSpriteClockMs] = useState(0);
   const [playerAnimation, setPlayerAnimation] = useState<CharacterAnimationState>('idle');
+  const [idleElapsedMs, setIdleElapsedMs] = useState(0);
+  const [animationRevision, setAnimationRevision] = useState(0);
   const [playerFacing, setPlayerFacing] = useState<HorizontalFacing>('right');
   const gameSessionIdRef = useRef(createSessionId());
   const sharedApiSessionIdRef = useRef<string | null>(null);
@@ -154,6 +160,7 @@ export default function App() {
     }
 
     setPlayerAnimation(animation);
+    setAnimationRevision(value => value + 1);
 
     const duration = playerAnimationDurationMs[animation];
     if (duration > 0) {
@@ -163,6 +170,22 @@ export default function App() {
       }, duration);
     }
   }, []);
+
+  useEffect(() => {
+    setIdleElapsedMs(0);
+    const idle = activeCharacter.spriteBoxes.idle;
+    if (loading || gameState?.isGameOver || playerAnimation !== 'idle' || idle.kind !== 'looper' || idle.frames.length < 2) return;
+    const durationMs = idle.frames.length * idle.frameMs;
+    let playback = createIdlePlayback(performance.now());
+    const timer = window.setInterval(() => {
+      const now = performance.now();
+      playback = document.hidden
+        ? createIdlePlayback(now)
+        : advanceIdlePlayback(playback, now, durationMs);
+      setIdleElapsedMs(playback.elapsedMs);
+    }, 60);
+    return () => window.clearInterval(timer);
+  }, [playerAnimation, animationRevision, loading, gameState?.isGameOver]);
 
   // Initialize Game
   const startNewGame = useCallback(() => {
@@ -485,7 +508,7 @@ export default function App() {
             </div>
             <div className="min-w-0">
               <h1 className="text-base sm:text-xl font-black tracking-tighter uppercase text-white leading-none truncate">
-                Isle Finder <span className="text-amber-500 text-sm">v2.4</span>
+                Treasure Hunter <span className="text-amber-500 text-sm">v{appVersion}</span>
               </h1>
               <p className="hidden sm:block text-[10px] text-slate-400 uppercase tracking-widest font-semibold mt-1">Procedural Expeditions</p>
             </div>
@@ -653,6 +676,7 @@ export default function App() {
                 tile={tile} 
                 terrain={terrainClassifications.get(tile.id)}
                 isCurrent={gameState.playerPos.x === tile.x && gameState.playerPos.y === tile.y}
+                idleElapsedMs={idleElapsedMs}
                 playerAnimation={playerAnimation}
                 playerFacing={playerFacing}
                 spriteClockMs={spriteClockMs}
@@ -699,9 +723,8 @@ export default function App() {
       </main>
 
       <footer className="hidden sm:flex shrink-0 h-8 lg:h-10 bg-slate-950 border-t border-slate-900 items-center justify-between px-4 lg:px-8 text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em]">
-        <span>Experimental Build v0.8.2</span>
-        <span>Secure Session Linked</span>
-        <span>Satellite Uplink: Active</span>
+        <span>Treasure Hunter v{appVersion}</span>
+        <span>Explore. Recover. Escape.</span>
       </footer>
     </div>
   );
@@ -724,6 +747,7 @@ interface TileComponentProps {
   tile: Tile;
   terrain?: TerrainTileClassification;
   isCurrent: boolean;
+  idleElapsedMs: number;
   playerAnimation: CharacterAnimationState;
   playerFacing: HorizontalFacing;
   spriteClockMs: number;
@@ -758,7 +782,7 @@ function getPlayerAnimationMotion(animation: CharacterAnimationState) {
   }
 }
 
-const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent, playerAnimation, playerFacing, spriteClockMs, onClick }) => {
+const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const getTileColor = (type: TileType) => {
     switch (type) {
@@ -774,7 +798,14 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
 
   const terrainSpriteBox = tileTerrainSpriteBoxes[tile.type];
   const entitySpriteBox = tile.entity ? entitySpriteBoxes[tile.entity] : undefined;
-  const visualSpriteBox = tile.visual ? visualSpriteBoxes[tile.visual.id] : undefined;
+  const visualSpriteBox = tile.visual
+    ? (tile.visual.assetKey ? getObjectSpriteBox(tile.visual.assetKey, tile.visual.action) : undefined)
+      ?? visualSpriteBoxes[tile.visual.id]
+    : undefined;
+  const assetPresentation = getTileAssetPresentation({
+    visualTone: tile.visual?.tone,
+    entityType: tile.entity,
+  });
   const tileLabel = tile.type.replace('_', ' ');
   const edgeClassName = terrain?.exposedEdges.map((edge) => `terrain-edge-${edge}`);
   const isWaterTerrain = tile.type === TileType.WATER || tile.type === TileType.DEEP_WATER;
@@ -860,9 +891,9 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
       </div>
       
       {tile.discovered && visualSpriteBox && !entitySpriteBox && !tile.visualConsumed && (
-        <div data-layer="object" className="absolute inset-0 z-10 p-[10%] pointer-events-none">
-          <SpriteBox spriteBox={visualSpriteBox} seed={tile.id} elapsedMs={spriteClockMs}
-            alt={tile.visual!.label} imageClassName="object-contain drop-shadow-lg" />
+        <div data-layer="object" className={assetPresentation.containerClassName}>
+          <SpriteBox spriteBox={visualSpriteBox} seed={tile.id} elapsedMs={spriteClockMs} level={tile.visual?.level}
+            alt={tile.visual!.label} imageClassName={assetPresentation.imageClassName} />
         </div>
       )}
 
@@ -871,7 +902,8 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
           initial={{ scale: 0, opacity: 0, rotate: -20 }}
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
           className={cn(
-            "absolute inset-0 flex items-center justify-center z-10 p-1 transition-opacity",
+            assetPresentation.containerClassName,
+            "transition-opacity",
             tile.entityFound && "opacity-30 grayscale"
           )}
         >
@@ -880,7 +912,7 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
             seed={`${tile.id}:${tile.entity}`}
             elapsedMs={spriteClockMs}
             alt={tile.entity}
-            imageClassName="object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,0.45)]"
+            imageClassName={assetPresentation.imageClassName}
           />
         </motion.div>
       )}
@@ -897,7 +929,7 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
               <SpriteBox
                 spriteBox={activeCharacter.spriteBoxes[playerAnimation]}
                 seed={`player:${activeCharacter.id}:${playerAnimation}`}
-                elapsedMs={spriteClockMs}
+                elapsedMs={playerAnimation === 'idle' ? idleElapsedMs : spriteClockMs}
                 alt={activeCharacter.label}
                 imageClassName={cn(
                   "object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.65)] transition-transform duration-150",
