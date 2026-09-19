@@ -31,6 +31,7 @@ test('keeps domains, characters and arbitrary states separate, including single 
 test('ignores static art, unsupported files and nested export folders', () => {
   assert.deepEqual(discoverCharacterAnimations({
     'assets/enemies/goblin.png': '/static.png',
+    'assets/enemies/goblin/idle/goblin.png': '/unnumbered.png',
     'assets/enemies/goblin/idle/readme.txt': '/readme.txt',
     'assets/enemies/goblin/idle/backup/frame_001.png': '/backup.png',
     'assets/exports/goblin/idle/frame_001.png': '/export.png',

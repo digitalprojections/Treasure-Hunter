@@ -1,8 +1,6 @@
-# Folder migration prepared for approval
+# Asset folder migration
 
-Fillable object folders and action subfolders are now created. Existing images
-have not yet been moved by this migration. Legacy filename lookup remains active
-until the migration is approved.
+The engine now enforces the folder contract. Run `npm run assets:check` to identify remaining nonconforming files. The engine does not relocate files or infer substitutes from their current locations.
 
 ## Target layout
 
@@ -37,7 +35,7 @@ images into per-object folders and converts hero portraits/cutouts to canonical
 names. It preflights all destinations, refuses overwrites, and only moves files
 inside this repository's assets directory. Barricade appearances stay variants.
 
-The corresponding engine change replaces filename tables with folder bindings:
+The engine uses object-folder bindings:
 42 existing tile visuals, six terrain bindings, six entity bindings, and the
 existing mage action timings. Object IDs, labels and gameplay behavior remain.
 Current rendering modules are backed up under ignored `tmp/folder-contract-backup`.

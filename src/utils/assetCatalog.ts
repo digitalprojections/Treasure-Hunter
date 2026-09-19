@@ -6,15 +6,15 @@ export const MISSING_ASSET = 'data:image/svg+xml,' + encodeURIComponent(
 );
 
 /** Resolve an object/action, never a particular image filename. */
-export function selectObjectSpriteBox(registry: ObjectAssetRegistry, key: string, action = 'idle', cutout = false): SpriteBoxModule {
-  const set = registry[key];
-  if (set?.actions[action]) return set.actions[action];
+export function selectObjectSpriteBox(registry: ObjectAssetRegistry, key: string, action = 'idle', cutout = false, usage: 'world' | 'hud' = 'world'): SpriteBoxModule {
+  const entry = registry[key];
+  const set = (entry?.usage ?? 'world') === usage ? entry : undefined;
   const still = set?.cutout;
   if (cutout && still) return createStaticSpriteBox(key, key, [still]);
+  if (set?.actions[action]) return set.actions[action];
   if (set?.static) return set.static;
-  const clip = set?.actions.idle ?? set?.actions.walk
-    ?? (set && Object.entries(set.actions).sort(([a], [b]) => a.localeCompare(b))[0]?.[1]);
-  // Missing actions use one still; damage/death must not play as an idle loop.
+  const clip = set?.actions.idle;
+  // Only neutral idle art may stand in for an unavailable action.
   const asset = still ?? clip?.frames[0] ?? createSpriteAsset(MISSING_ASSET, key);
   return createStaticSpriteBox(key, key, [asset]);
 }

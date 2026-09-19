@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EntityType, TileType, type GameState, type Tile, type TileVisualId } from '../types';
-import { moveHero } from './interactions';
+import { moveHero, describeInteraction } from './interactions';
 const tile = (x: number, extra: Partial<Tile> = {}): Tile => ({ id: `${x}-0`, x, y: 0, type: TileType.GRASS, discovered: true, ...extra });
 function state(extra: Partial<Tile> = {}): GameState {
   return { tiles: [tile(0), tile(1, extra)], playerPos: { x: 0, y: 0 }, resources: { gold: 100, wood: 20, stone: 10, gems: 2 }, stamina: 20, maxStamina: 20, stats: { treasuresFound: 0, relicsCollected: 0, trapsTriggered: 0, daysElapsed: 1 }, isGameOver: false };
@@ -13,9 +13,31 @@ test('combat spends stamina, awards loot once and clears the enemy', () => {
   assert.equal(result.state.stamina, 16);
   assert.equal(result.state.resources.gold, 112);
   assert.equal(result.state.tiles[1].visualConsumed, true);
+  assert.deepEqual(result.state.playerPos, initial.playerPos);
+  assert.equal(result.animation, 'attack');
+  assert.equal(result.combatTargetId, '1-0');
   const returned = moveHero(moveHero(result.state, 0, 0).state, 1, 0);
   assert.equal(returned.state.resources.gold, 112);
   assert.equal(initial.stamina, 20);
+});
+
+test('diagonal combat stays in place and a later click enters the cleared tile', () => {
+  const initial = state({ visual: visual('wolf') });
+  initial.tiles[1].y = 1;
+  const result = moveHero(initial, 1, 1);
+  assert.deepEqual(result.state.playerPos, { x: 0, y: 0 });
+  assert.equal(result.state.resources.gold, 112);
+  const next = moveHero(result.state, 1, 1);
+  assert.deepEqual(next.state.playerPos, { x: 1, y: 1 });
+  assert.equal(next.state.resources.gold, 112);
+  assert.equal(next.combatTargetId, undefined);
+});
+
+test('distant enemy clicks do not initiate combat or spend stamina', () => {
+  const initial = state({ visual: visual('goblin') });
+  initial.tiles[1].x = 2;
+  assert.equal(moveHero(initial, 2, 0).state, initial);
+  assert.equal(moveHero(initial, 2, 0).combatTargetId, undefined);
 });
 test('insufficient combat stamina blocks movement and loot without mutations', () => {
   const initial = { ...state({ visual: visual('troll') }), stamina: 2 };
@@ -43,9 +65,38 @@ test('recovery respects maximum stamina and cannot be farmed', () => {
   const again = moveHero(moveHero(first.state, 0, 0).state, 1, 0);
   assert.equal(again.state.stamina, 18);
 });
-test('traps cannot make gold negative, treasure rewards trigger only once', () => {
-  const initial = state({ entity: EntityType.TRAP }); initial.resources.gold = 0;
-  assert.equal(moveHero(initial, 1, 0).state.resources.gold, 0);
+test('trapped caches randomly trade stamina for gems exactly once', () => {
+  const initial = state({ entity: EntityType.TRAP });
+  assert.match(describeInteraction(initial.tiles[1]), /1–3 gems.*2–5 stamina/i);
+  const first = moveHero(initial, 1, 0, () => 0);
+  assert.equal(first.state.resources.gold, 100);
+  assert.equal(first.state.resources.gems, 3);
+  assert.equal(first.state.stamina, 18);
+  assert.equal(first.state.stats.trapsTriggered, 1);
+  assert.equal(first.animation, 'collect');
+  const again = moveHero(moveHero(first.state, 0, 0).state, 1, 0);
+  assert.equal(again.state.resources.gold, 100);
+  assert.equal(again.state.resources.gems, 3);
+  assert.equal(again.state.stamina, 16);
+  assert.equal(initial.resources.gold, 100);
+});
+
+test('cache trade with insufficient stamina leaves all state untouched', () => {
+  const initial = state({ entity: EntityType.TRAP }); initial.stamina = 2;
+  assert.equal(moveHero(initial, 1, 0).state, initial);
+});
+
+test('an undiscovered cache is revealed before any trade is charged', () => {
+  const initial = state({ entity: EntityType.TRAP, discovered: false });
+  const revealed = moveHero(initial, 1, 0).state;
+  assert.deepEqual(revealed.playerPos, initial.playerPos);
+  assert.equal(revealed.resources.gold, 100);
+  assert.equal(revealed.stamina, 20);
+  assert.equal(revealed.tiles[1].discovered, true);
+  assert.equal(revealed.tiles[1].entityFound, undefined);
+});
+
+test('treasure rewards trigger only once', () => {
   const treasure = moveHero(state({ entity: EntityType.TREASURE }), 1, 0, () => 0);
   assert.equal(treasure.state.resources.gold, 120);
   assert.equal(treasure.achievement, 'treasure_found');
@@ -84,4 +135,27 @@ test('ordinary forest movement cannot farm wood and costs only stamina', () => {
   const result = moveHero(s, 1, 0);
   assert.equal(result.state.resources.wood, 20);
   assert.equal(result.state.stamina, 19);
+});
+
+test('strange markers can reward or lose gold, exactly once without negative balances', () => {
+  const initial = state({ visual: visual('random') });
+  assert.match(describeInteraction(initial.tiles[1]), /gain.*lose.*20 gold/i);
+  const win = moveHero(initial, 1, 0, () => 0);
+  assert.equal(win.state.resources.gold, 120);
+  const loss = moveHero(initial, 1, 0, () => 1);
+  assert.equal(loss.state.resources.gold, 80);
+  assert.equal(loss.state.stamina, 19);
+  assert.equal(loss.state.tiles[1].visualConsumed, true);
+  assert.equal(moveHero(moveHero(loss.state, 0, 0).state, 1, 0, () => 0).state.resources.gold, 80);
+  initial.resources.gold = 5;
+  assert.equal(moveHero(initial, 1, 0, () => 1).state.resources.gold, 0);
+});
+
+test('skull rolls stay within both ranges and require the maximum possible cost', () => {
+  const initial = state({ entity: EntityType.TRAP });
+  const high = moveHero(initial, 1, 0, () => 1);
+  assert.equal(high.state.resources.gems, 5);
+  assert.equal(high.state.stamina, 15);
+  initial.stamina = 4;
+  assert.equal(moveHero(initial, 1, 0, () => { throw new Error('Must not roll before accepting'); }).state, initial);
 });

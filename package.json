@@ -1,9 +1,11 @@
 {
   "name": "treasure-hunter",
   "private": true,
-  "version": "0.0.7",
+  "version": "0.0.29",
   "type": "module",
   "scripts": {
+    "test:combat-rendering": "tsx scripts/verify-combat-rendering.ts",
+    "assets:check": "tsx scripts/check-asset-conventions.ts",
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",

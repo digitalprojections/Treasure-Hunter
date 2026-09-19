@@ -30,7 +30,7 @@ export const mageCharacter: CharacterDefinition = {
     {
       id: 'trap_ward',
       label: 'Ward',
-      description: 'Expose nearby traps safely.',
+      description: 'Reveal nearby trapped caches.',
       animation: 'hit',
       target: 'area',
       range: 2,

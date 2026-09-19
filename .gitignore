@@ -16,3 +16,5 @@ tmp/
 # Local tooling caches
 .vite/
 *.tsbuildinfo
+playwright-report/
+test-results/

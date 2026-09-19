@@ -1,5 +1,5 @@
 export type SpriteBoxKind = 'static' | 'looper';
-export type CharacterAnimationState = 'idle' | 'walk' | 'scout' | 'collect' | 'hit' | 'escape';
+export type CharacterAnimationState = 'idle' | 'walk' | 'attack' | 'scout' | 'collect' | 'hit' | 'escape';
 export type HorizontalFacing = 'left' | 'right';
 
 export interface SpriteBoxAsset {

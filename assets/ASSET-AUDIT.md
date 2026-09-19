@@ -1,0 +1,42 @@
+# Asset convention audit
+
+Regenerate with `npm run assets:check -- --report`. This report does not modify images.
+
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_001.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_002.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_004.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_005.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_007.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_008.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_009.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_010.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_011.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_012.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centeredhh/Sprite_Animation_centered_013.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_001.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_002.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_003.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_004.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_005.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_006.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_007.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_008.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_009.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_010.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_011.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_012.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/Sprite_Animation_batch_transparent_centered (4)/Sprite_Animation_centered_013.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/heroes/soldier/bg_removed__soldier.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/heroes/scout/bg_removed__scout.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/heroes/explorer/bg_removed__explorer_.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/heroes/archer/bg_removed__archer_.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/enemies/wolf/idle/wolf.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/enemies/troll/idle/troll.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/enemies/skeleton/idle/skeleton.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/enemies/orc/idle/orc.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- assets/enemies/harpy/idle/harpy.png: expected category/type/static.png, cutout.png, type.png, level_N.png, variant_N.png, or action/name_N.png (Windows name (N) is also supported).
+- heroes/engineer: missing neutral art; add static.png, cutout.png, or idle/name_001.png. Other actions cannot substitute for idle.
+- Missing HUD icon: assets/symbols/gold_symbol/gold_symbol.png (or static.png). Generic UI icon is used until supplied.
+- Missing HUD icon: assets/symbols/wood_symbol/wood_symbol.png (or static.png). Generic UI icon is used until supplied.
+- Missing HUD icon: assets/symbols/stone_symbol/stone_symbol.png (or static.png). Generic UI icon is used until supplied.
+- Missing HUD icon: assets/symbols/gem_symbol/gem_symbol.png (or static.png). Generic UI icon is used until supplied.

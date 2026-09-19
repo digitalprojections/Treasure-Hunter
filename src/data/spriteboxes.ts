@@ -3,7 +3,6 @@ import { getObjectSpriteBox } from './objectAssets';
 import { EntityType, TileType, TileVisualId } from '../types';
 import {
   CharacterSpriteBoxSet,
-  createLooperSpriteBox,
   createSpriteAsset,
   createStaticSpriteBox,
   SpriteBoxModule,
@@ -13,8 +12,6 @@ import {
   defenseAssets,
   enemyAssets,
   entityAssets,
-  heroCutoutAssets,
-  mageAnimationAssets,
   resourceAssets,
   structureAssets,
   symbolAssets,
@@ -33,22 +30,6 @@ function staticBox(id: string, label: string, entries: readonly [readonly [strin
     label,
     entries.map(([src, name]) => asset(src, name)) as [ReturnType<typeof asset>, ...ReturnType<typeof asset>[]],
   );
-}
-
-function looperBox(id: string, label: string, entries: readonly [readonly [string, string], ...readonly [string, string][]], frameMs = 300) {
-  return createLooperSpriteBox(
-    id,
-    label,
-    entries.map(([src, name]) => asset(src, name)) as [ReturnType<typeof asset>, ...ReturnType<typeof asset>[]],
-    frameMs,
-  );
-}
-
-function animationEntries(frames: readonly string[], pathPrefix: string) {
-  return (frames?.length ? frames : [heroCutoutAssets.mage]).map((frame, index) => [frame, `${pathPrefix}_${String(index + 1).padStart(3, '0')}`] as const) as [
-    readonly [string, string],
-    ...readonly [string, string][],
-  ];
 }
 
 export const tileTerrainSpriteBoxes: Record<TileType, SpriteBoxModule> = {
@@ -85,18 +66,14 @@ export const visualSpriteBoxes: Record<TileVisualId, SpriteBoxModule> = {
   goblin: staticBox('visual.goblin', 'Goblin Camp', [[enemyAssets.goblin, 'enemies/goblin']]),
   harpy: staticBox('visual.harpy', 'Harpy Roost', [[enemyAssets.harpy, 'enemies/harpy']]),
   ironGate: staticBox('visual.iron_gate', 'Iron Gate', [[barrierAssets.ironGate, 'barriers/iron_gate']]),
-  key: staticBox('visual.key', 'Key Marker', [[symbolAssets.key, 'symbols/key_symbol']]),
   magicGate: staticBox('visual.magic_gate', 'Magic Gate', [[barrierAssets.magicGate, 'barriers/magic_gate']]),
   magicTurret: defenseAssets.magicTurret,
   orc: staticBox('visual.orc', 'Orc Camp', [[enemyAssets.orc, 'enemies/orc']]),
-  potion: staticBox('visual.potion', 'Potion Sign', [[symbolAssets.potion, 'symbols/potion_symbol']]),
   quest: staticBox('visual.quest', 'Quest Marker', [[symbolAssets.quest, 'symbols/quest']]),
   rabbit: staticBox('visual.rabbit', 'Rabbit', [[wildlifeAssets.rabbit, 'wildlife/rabbit']]),
   random: staticBox('visual.random', 'Strange Marker', [[symbolAssets.random, 'symbols/random']]),
   roadSign: staticBox('visual.road_sign', 'Road Sign', [[structureAssets.roadSign, 'structures/road_sign']]),
-  scroll: staticBox('visual.scroll', 'Scroll Marker', [[symbolAssets.scroll, 'symbols/scroll_symbol']]),
   skeleton: staticBox('visual.skeleton', 'Skeleton Post', [[enemyAssets.skeleton, 'enemies/skeleton']]),
-  star: staticBox('visual.star', 'Star Shrine', [[symbolAssets.star, 'symbols/star_symbol']]),
   stone: staticBox('visual.stone', 'Stone Deposit', [[resourceAssets.stone, 'resources/stone']]),
   stoneBridge: staticBox('visual.stone_bridge', 'Stone Bridge', [[barrierAssets.stoneBridge, 'barriers/stone_bridge']]),
   stoneGate: staticBox('visual.stone_gate', 'Stone Gate', [[barrierAssets.stoneGate, 'barriers/stone_gate']]),
@@ -106,7 +83,6 @@ export const visualSpriteBoxes: Record<TileVisualId, SpriteBoxModule> = {
   turret: defenseAssets.turret,
   turtle: staticBox('visual.turtle', 'Turtle', [[wildlifeAssets.turtle, 'wildlife/turtle']]),
   village: staticBox('visual.village', 'Village', [[structureAssets.village, 'structures/village']]),
-  waypoint: staticBox('visual.waypoint', 'Waypoint', [[symbolAssets.waypoint, 'symbols/waypoint_symbol']]),
   well: staticBox('visual.well', 'Well', [[structureAssets.well, 'structures/well']]),
   wolf: staticBox('visual.wolf', 'Wolf Den', [[enemyAssets.wolf, 'enemies/wolf']]),
   wood: staticBox('visual.wood', 'Wood Pile', [[resourceAssets.wood, 'resources/wood']]),
@@ -127,21 +103,10 @@ export const symbolSpriteBoxes = {
   fog: staticBox('symbol.fog', 'Fog', [[symbolAssets.fog, 'symbols/fog']]),
 } as const;
 
-export const playerSpriteBoxes: CharacterSpriteBoxSet = {
-  idle: staticBox('hero.mage.idle', 'Mage idle', [[heroCutoutAssets.mage, 'heroes/mage/idle_001']]),
-  walk: looperBox('hero.mage.walk', 'Mage walking', animationEntries(mageAnimationAssets.walk, 'heroes/mage/walk'), 120),
-  scout: looperBox('hero.mage.scout', 'Mage scouting', animationEntries(mageAnimationAssets.scout, 'heroes/mage/scout'), 140),
-  collect: looperBox('hero.mage.collect', 'Mage collecting', animationEntries(mageAnimationAssets.collect, 'heroes/mage/collect'), 110),
-  hit: looperBox('hero.mage.hit', 'Mage hit', animationEntries(mageAnimationAssets.hit, 'heroes/mage/hit'), 150),
-  escape: looperBox('hero.mage.escape', 'Mage escaping', animationEntries(mageAnimationAssets.walk, 'heroes/mage/escape'), 100),
-};
-
-// Folder states override configured defaults while retaining gameplay timing and IDs.
-for (const [state, clip] of Object.entries(characterAnimations.heroes?.mage ?? {})) {
-  if (Object.hasOwn(playerSpriteBoxes, state)) {
-    const key = state as keyof CharacterSpriteBoxSet;
-    const previous = playerSpriteBoxes[key];
-    playerSpriteBoxes[key] = { ...clip, id: previous.id, label: previous.label,
-      frameMs: previous.kind === 'looper' ? previous.frameMs : clip.frameMs };
-  }
-}
+export const playerSpriteBoxes: CharacterSpriteBoxSet = Object.fromEntries(
+  Object.entries({ idle: 140, walk: 120, attack: 140, scout: 140, collect: 110, hit: 150, escape: 100 }).map(([state, frameMs]) => {
+    const box = getObjectSpriteBox('heroes/mage', state);
+    return [state, { ...box, id: `hero.mage.${state}`, label: `Mage ${state}`,
+      ...(box.kind === 'looper' ? { frameMs } : {}) }];
+  }),
+) as CharacterSpriteBoxSet;

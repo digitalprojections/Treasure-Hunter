@@ -1,6 +1,12 @@
+import { appendLog, type ExpeditionLog } from './utils/expeditionLog';
+import { useGameAudio } from './useGameAudio';
+import { musicCueForOutcome } from './utils/musicFlow';
+import { statSymbols } from './data/statSymbols';
+import { useRandomIdle } from './useRandomIdle';
+import { getActorIdleDuration } from './utils/actorIdle';
 import { createIdlePlayback, advanceIdlePlayback } from './utils/idlePlayback';
 import { version as appVersion } from '../package.json';
-import { moveHero, describeInteraction } from './utils/interactions';
+import { moveHero, describeInteraction, TRAPPED_CACHE } from './utils/interactions';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -69,6 +75,7 @@ function createSessionId() {
 
 const playerAnimationDurationMs: Record<CharacterAnimationState, number> = {
   idle: 0,
+  attack: 1120,
   walk: 520,
   scout: 900,
   collect: 900,
@@ -76,11 +83,19 @@ const playerAnimationDurationMs: Record<CharacterAnimationState, number> = {
   escape: 2400,
 };
 
+// Decorative icons retain adjacent text labels and numeric values.
+const StatIcon = ({ src, fallback }: { src?: string, fallback: React.ReactNode }) => {
+  const [failed, setFailed] = useState(false);
+  return !src || failed || src.startsWith('data:') ? <>{fallback}</> :
+    <img data-stat-symbol src={src} alt="" aria-hidden="true" draggable={false}
+      className="h-6 w-6 shrink-0 object-contain" onError={() => setFailed(true)} />;
+};
+
 // Sub-components
-const ResourceItem = ({ icon: Icon, value, label, color }: { icon: any, value: number, label: string, color: string }) => (
+const ResourceItem = ({ icon: Icon, image, value, label, color }: { icon: any, image?: string, value: number, label: string, color: string }) => (
   <div className="flex shrink-0 items-center gap-2 bg-slate-900/80 border border-slate-700 px-2.5 py-1.5 rounded-md shadow-inner">
     <div className={cn("p-1 rounded-full bg-opacity-20", color)}>
-      <Icon size={16} className={color.replace('bg-', 'text-')} />
+      <StatIcon src={image} fallback={<Icon size={16} className={color.replace('bg-', 'text-')} />} />
     </div>
     <div className="flex flex-col min-w-0">
       <span className="text-[10px] text-slate-500 font-bold uppercase leading-none tracking-wider">{label}</span>
@@ -90,8 +105,8 @@ const ResourceItem = ({ icon: Icon, value, label, color }: { icon: any, value: n
 );
 
 const SidebarSection = ({ title, children, icon: Icon }: { title: string, children: React.ReactNode, icon?: any }) => (
-  <div className="shrink-0 bg-slate-900 border border-slate-800 rounded-lg p-3 lg:p-4 shadow-xl relative overflow-hidden">
-    <div className="flex items-center gap-2 mb-3 lg:mb-4 border-b border-slate-800 pb-2">
+  <div className="sidebar-card bg-slate-900 border border-slate-800 rounded-lg shadow-xl">
+    <div className="sidebar-card-heading flex items-center gap-2 border-b border-slate-800">
       {Icon && <Icon size={14} className="text-slate-500" />}
       <h3 className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">{title}</h3>
     </div>
@@ -103,9 +118,10 @@ interface LogItemProps {
   message: string;
   type?: 'info' | 'success' | 'warning' | 'error';
   timestamp: string;
+  count: number;
 }
 
-const LogItem: React.FC<LogItemProps> = ({ message, type, timestamp }) => {
+const LogItem: React.FC<LogItemProps> = ({ message, type, timestamp, count }) => {
   const colors = {
     info: 'text-slate-400',
     success: 'text-emerald-400',
@@ -113,7 +129,7 @@ const LogItem: React.FC<LogItemProps> = ({ message, type, timestamp }) => {
     error: 'text-red-400'
   };
   return (
-    <div className={cn("text-[11px] font-mono mb-2 border-l-2 pl-3 border-slate-800", colors[type || 'info'])}>
+    <div key={count} data-repeat-count={count} data-tone={type || 'info'} className={cn("expedition-message text-[11px] font-mono mb-3", count > 1 && "notice-repeat", colors[type || 'info'])}>
       <span className="opacity-50 mr-2">[{timestamp}]</span>
       {message}
     </div>
@@ -123,13 +139,18 @@ const LogItem: React.FC<LogItemProps> = ({ message, type, timestamp }) => {
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [logs, setLogs] = useState<{ message: string, type: 'info' | 'success' | 'warning' | 'error', timestamp: string }[]>([]);
+  const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
+  const { volumes, setVolumes, playSound, playMusicEvent, musicStatus } = useGameAudio(!gameState ? 'menu' : gameState.isGameOver ? 'victory' : 'play');
+  const [logs, setLogs] = useState<ExpeditionLog[]>([]);
+  const [cacheOffer, setCacheOffer] = useState<{ x: number; y: number; kind: 'cache' | 'marker' } | null>(null);
   const [loading, setLoading] = useState(true);
   const [pointsEarnedToday, setPointsEarnedToday] = useState(0);
   const [spriteClockMs, setSpriteClockMs] = useState(0);
   const [playerAnimation, setPlayerAnimation] = useState<CharacterAnimationState>('idle');
   const [idleElapsedMs, setIdleElapsedMs] = useState(0);
   const [animationRevision, setAnimationRevision] = useState(0);
+  const [combat, setCombat] = useState<{ targetId: string; startedAt: number; dx: number; dy: number } | null>(null);
+  const combatTimeoutRef = useRef<number | null>(null);
   const [playerFacing, setPlayerFacing] = useState<HorizontalFacing>('right');
   const gameSessionIdRef = useRef(createSessionId());
   const sharedApiSessionIdRef = useRef<string | null>(null);
@@ -147,6 +168,7 @@ export default function App() {
 
   useEffect(() => {
     return () => {
+      if (combatTimeoutRef.current !== null) window.clearTimeout(combatTimeoutRef.current);
       if (playerAnimationTimeoutRef.current !== null) {
         window.clearTimeout(playerAnimationTimeoutRef.current);
       }
@@ -189,6 +211,10 @@ export default function App() {
 
   // Initialize Game
   const startNewGame = useCallback(() => {
+    if (combatTimeoutRef.current !== null) window.clearTimeout(combatTimeoutRef.current);
+    combatTimeoutRef.current = null;
+    setCombat(null);
+    setCacheOffer(null);
     playPlayerAnimation('idle');
     gameSessionIdRef.current = createSessionId();
     const tiles = generateIsland();
@@ -212,7 +238,7 @@ export default function App() {
       isGameOver: false,
       skillCooldowns: {},
     });
-    setLogs([{ message: "Shipwrecked! You've landed on a mysterious island...", type: 'warning', timestamp: new Date().toLocaleTimeString([], { hour12: false }) }]);
+    setLogs([{ id: createSessionId(), count: 1, message: "Shipwrecked! You've landed on a mysterious island...", type: 'warning', timestamp: new Date().toLocaleTimeString([], { hour12: false }) }]);
   }, [playPlayerAnimation]);
 
   // Auth Handling
@@ -230,7 +256,8 @@ export default function App() {
 
   const addLog = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     const timestamp = new Date().toLocaleTimeString([], { hour12: false });
-    setLogs(prev => [{ message, type, timestamp }, ...prev.slice(0, 19)]);
+    const incoming = { id: createSessionId(), count: 1, message, type, timestamp };
+    setLogs(prev => appendLog(prev, incoming));
   };
 
   const applyPointsResult = (result: PointsAwardResponse, label: string, quiet = false) => {
@@ -356,11 +383,39 @@ export default function App() {
     };
   }, [user, sharedApiSessionId]);
 
-  const handleMove = (x: number, y: number) => {
-    if (!gameState) return;
+  const handleMove = (x: number, y: number, acceptCache = false) => {
+    if (!gameState || combatTimeoutRef.current !== null) return;
+    const clicked = gameState.tiles.find(tile => tile.x === x && tile.y === y);
+    if (!acceptCache && clicked && ((clicked.entity === EntityType.TRAP && !clicked.entityFound) || (!clicked.entity && clicked.visual?.id === 'random' && !clicked.visualConsumed)) && clicked.discovered &&
+        !gameState.isGameOver && Math.max(Math.abs(x - gameState.playerPos.x), Math.abs(y - gameState.playerPos.y)) === 1) {
+      setCacheOffer({ x, y, kind: clicked.entity === EntityType.TRAP ? 'cache' : 'marker' });
+      return;
+    }
+    setCacheOffer(null);
     const result = moveHero(gameState, x, y);
+    if (result.combatTargetId) {
+      setPlayerFacing(current => getHorizontalFacingAfterMove(current, gameState.playerPos.x, x));
+      setCombat({ targetId: result.combatTargetId, startedAt: performance.now(),
+        dx: x - gameState.playerPos.x, dy: y - gameState.playerPos.y });
+      playPlayerAnimation('attack');
+      playSound('attack');
+      playMusicEvent('combat');
+      combatTimeoutRef.current = window.setTimeout(() => {
+        setGameState(result.state);
+        addLog(result.message, result.tone);
+        setCombat(null);
+        combatTimeoutRef.current = null;
+      }, playerAnimationDurationMs.attack);
+      return;
+    }
     if (result.message) addLog(result.message, result.tone);
-    if (result.state === gameState) return;
+    if (result.state === gameState) {
+      if (result.message && (result.tone === 'warning' || result.tone === 'error')) playSound('warning');
+      return;
+    }
+    if (result.animation !== 'idle') playSound(result.animation);
+    const musicCue = musicCueForOutcome(result);
+    if (musicCue) playMusicEvent(musicCue);
     setPlayerFacing(current => getHorizontalFacingAfterMove(current, gameState.playerPos.x, result.state.playerPos.x));
     playPlayerAnimation(result.animation);
     setGameState(result.state);
@@ -381,6 +436,7 @@ export default function App() {
   };
 
   const handleUseSkill = async (skill: CharacterSkill) => {
+    if (combatTimeoutRef.current !== null) return;
     if (!gameState || gameState.isGameOver) return;
 
     const availability = canUseCharacterSkill(skill, gameState);
@@ -398,6 +454,7 @@ export default function App() {
     }
 
     playPlayerAnimation(skill.animation);
+    if (skill.animation !== 'idle') playSound(skill.animation);
 
     if (skill.id === 'archive_clue') {
       addLog('Consulting the archives...', 'info');
@@ -452,11 +509,11 @@ export default function App() {
           const inRange = Math.abs(t.x - x) <= range && Math.abs(t.y - y) <= range;
           if (inRange && t.entity === EntityType.TRAP && !t.entityFound) {
             trapsRevealed += 1;
-            return { ...t, discovered: true, entityFound: true };
+            return { ...t, discovered: true };
           }
           return t;
         });
-        message = trapsRevealed > 0 ? `Ward exposed ${trapsRevealed} nearby trap${trapsRevealed === 1 ? '' : 's'}.` : 'Ward held. No nearby traps detected.';
+        message = trapsRevealed > 0 ? `Ward revealed ${trapsRevealed} trapped cache${trapsRevealed === 1 ? '' : 's'}.` : 'No trapped caches nearby.';
         logType = trapsRevealed > 0 ? 'success' : 'info';
       }
 
@@ -468,7 +525,10 @@ export default function App() {
     });
   };
   const handleEndTurn = () => {
+    if (combatTimeoutRef.current !== null) return;
     if (!gameState) return;
+    playSound('rest');
+    playMusicEvent('rest');
     setGameState(prev => {
       if (!prev) return null;
       const recoveredStamina = Math.min(prev.maxStamina, prev.stamina + 10);
@@ -499,6 +559,25 @@ export default function App() {
 
   return (
     <div className="h-[100dvh] max-h-[100dvh] bg-[#0F172A] text-slate-100 font-sans selection:bg-amber-500/30 overflow-hidden flex flex-col border-4 lg:border-8 border-slate-900">
+      {cacheOffer && (
+        <div className="encounter-overlay fixed inset-0 z-[100] flex items-center justify-center p-5">
+          <section role="dialog" aria-modal="true" aria-labelledby="cache-offer-title"
+            onKeyDown={event => { if (event.key === 'Escape') setCacheOffer(null); }}
+            className="encounter-frame w-full max-w-md">
+            <div aria-hidden="true" className="encounter-crest"><Compass size={24} /></div>
+            <p className="encounter-eyebrow">Expedition encounter</p>
+            <h2 id="cache-offer-title" className="text-xl font-bold text-amber-100">{cacheOffer.kind === 'cache' ? 'Trapped cache' : 'Strange marker'}</h2>
+            <p className="my-4 text-sm leading-relaxed text-slate-100">{cacheOffer.kind === 'cache' ? `Recover ${TRAPPED_CACHE.minGems}–${TRAPPED_CACHE.maxGems} gems for ${TRAPPED_CACHE.minStamina}–${TRAPPED_CACHE.maxStamina} stamina, including movement. Both amounts are random. Requires ${TRAPPED_CACHE.maxStamina} stamina to accept.` : 'Equal chance to gain 20 gold or lose up to 20 gold. Investigating costs 1 stamina, including movement.'}</p>
+            {(gameState?.stamina ?? 0) < (cacheOffer.kind === 'cache' ? TRAPPED_CACHE.maxStamina : 1) && <p className="mb-3 text-sm text-amber-300">Rest to recover enough stamina.</p>}
+            <div className="flex gap-3">
+              <button autoFocus className="encounter-choice flex-1 px-3 py-2.5" onClick={() => setCacheOffer(null)}>Leave it</button>
+              <button className="encounter-choice encounter-choice-primary flex-1 px-3 py-2.5 font-bold disabled:opacity-40"
+                disabled={(gameState?.stamina ?? 0) < (cacheOffer.kind === 'cache' ? TRAPPED_CACHE.maxStamina : 1)}
+                onClick={() => handleMove(cacheOffer.x, cacheOffer.y, true)}>{cacheOffer.kind === 'cache' ? 'Open cache' : 'Investigate'}</button>
+            </div>
+          </section>
+        </div>
+      )}
       {/* Header */}
       <header className="shrink-0 bg-slate-800/50 border-b border-slate-700 flex flex-wrap lg:flex-nowrap items-center gap-2 px-2 sm:px-4 lg:px-6 py-2 justify-between shadow-2xl z-20 backdrop-blur-sm">
         <div className="min-w-0 flex flex-1 flex-wrap lg:flex-nowrap items-center gap-2 sm:gap-4">
@@ -517,11 +596,11 @@ export default function App() {
           <div className="hidden lg:block h-8 w-[1px] bg-slate-700 mx-1" />
 
           <div className="flex min-w-0 flex-1 gap-2 sm:gap-3 overflow-x-auto pb-1 lg:pb-0">
-            <ResourceItem icon={Coins} value={Math.max(0, gameState?.resources.gold || 0)} label="Gold" color="bg-amber-500" />
-            <ResourceItem icon={Trees} value={gameState?.resources.wood || 0} label="Wood" color="bg-emerald-500" />
-            <ResourceItem icon={MountainIcon} value={gameState?.resources.stone || 0} label="Stone" color="bg-slate-400" />
-            <ResourceItem icon={Sparkles} value={gameState?.resources.gems || 0} label="Gems" color="bg-purple-500" />
-            {user && <ResourceItem icon={Trophy} value={pointsEarnedToday} label="Pts Today" color="bg-cyan-500" />}
+            <ResourceItem icon={Coins} image={statSymbols.gold} value={Math.max(0, gameState?.resources.gold || 0)} label="Gold" color="bg-amber-500" />
+            <ResourceItem icon={Trees} image={statSymbols.wood} value={gameState?.resources.wood || 0} label="Wood" color="bg-emerald-500" />
+            <ResourceItem icon={MountainIcon} image={statSymbols.stone} value={gameState?.resources.stone || 0} label="Stone" color="bg-slate-400" />
+            <ResourceItem icon={Sparkles} image={statSymbols.gems} value={gameState?.resources.gems || 0} label="Gems" color="bg-purple-500" />
+            {user && <ResourceItem icon={Trophy} image={statSymbols.points} value={pointsEarnedToday} label="Pts Today" color="bg-cyan-500" />}
           </div>
         </div>
 
@@ -533,7 +612,7 @@ export default function App() {
             </div>
             <div className="h-6 w-[1px] bg-slate-800"></div>
             <div className="flex flex-col items-center">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Stamina</span>
+              <span className="flex items-center gap-1 text-[10px] text-slate-500 font-bold uppercase tracking-tighter"><StatIcon src={statSymbols.stamina} fallback={null} />Stamina</span>
               <span className={cn("text-xs font-mono font-bold", (gameState?.stamina || 0) < 5 ? "text-red-500 animate-pulse" : "text-emerald-400")}>
                 {gameState?.stamina} / {gameState?.maxStamina}
               </span>
@@ -550,19 +629,19 @@ export default function App() {
               Sign In
             </button>
           )}
-          <button className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-500">
+          <button onClick={() => setAudioSettingsOpen(true)} aria-label="Audio settings" className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-500">
             <Settings size={20} />
           </button>
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 grid grid-rows-[minmax(5rem,16dvh)_minmax(0,1fr)_minmax(7rem,20dvh)] lg:grid-rows-1 lg:grid-cols-[minmax(13rem,18rem)_minmax(0,1fr)_minmax(14rem,20rem)] overflow-hidden">
+      <main className="game-layout min-h-0 flex-1 grid overflow-hidden">
         {/* Sidebar Controls */}
-        <aside className="custom-scrollbar min-h-0 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 p-2 sm:p-3 lg:p-6 flex flex-col gap-3 lg:gap-6 shadow-2xl z-10 overflow-y-auto">
+        <aside className="expedition-panel min-h-0 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 shadow-2xl z-10">
           <section>
-            <h3 className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 lg:mb-4">Current Expedition</h3>
-            <div className="space-y-3 lg:space-y-4">
-              <div className="p-3 lg:p-4 bg-slate-800/50 rounded border border-slate-700/50 backdrop-blur-sm">
+            <h3 className="panel-heading font-bold text-slate-500 uppercase">Current Expedition</h3>
+            <div className="expedition-summary">
+              <div className="p-2 bg-slate-800/50 rounded border border-slate-700/50">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs font-semibold text-slate-300">Island Map 09-X</span>
                   <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-widest">Active</span>
@@ -575,7 +654,7 @@ export default function App() {
                   />
                 </div>
                 <div className="mt-2 text-[10px] text-slate-500 font-bold uppercase tracking-tighter flex justify-between">
-                  <span>Exploration Progress</span>
+                  <span className="flex items-center gap-2"><StatIcon src={statSymbols.exploration} fallback={null} />Exploration Progress</span>
                   <span>{Math.round((gameState?.tiles.filter(t => t.discovered).length || 0) / (gameState?.tiles.length || 1) * 100)}%</span>
                 </div>
               </div>
@@ -583,17 +662,17 @@ export default function App() {
           </section>
 
           <SidebarSection title="Field Manual">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <div className="legend-grid grid grid-cols-2">
               <LegendItem label="Deep Water" spriteBox={tileTerrainSpriteBoxes[TileType.DEEP_WATER]} color="bg-blue-950" />
               <LegendItem label="Water" spriteBox={tileTerrainSpriteBoxes[TileType.WATER]} color="bg-blue-800" />
               <LegendItem label="Sand" spriteBox={tileTerrainSpriteBoxes[TileType.SAND]} color="bg-amber-300" />
               <LegendItem label="Grass" spriteBox={tileTerrainSpriteBoxes[TileType.GRASS]} color="bg-emerald-700" />
               <LegendItem label="Forest" spriteBox={tileTerrainSpriteBoxes[TileType.FOREST]} color="bg-emerald-950" />
               <LegendItem label="Mountain" spriteBox={tileTerrainSpriteBoxes[TileType.MOUNTAIN]} color="bg-slate-600" />
-              <div className="col-span-2 border-t border-slate-800 my-1 pt-2 opacity-80">
+              <div className="legend-entities col-span-2 grid grid-cols-2 border-t border-slate-800 opacity-80">
                 <LegendItem label="Treasure" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.TREASURE]} />
                 <LegendItem label="Relic" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.RELIC]} />
-                <LegendItem label="Trap" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.TRAP]} />
+                <LegendItem label="Trapped Cache" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.TRAP]} />
                 <LegendItem label="Ruin" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.RUIN]} />
                 <LegendItem label="Exit Port" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.EXIT]} />
               </div>
@@ -601,24 +680,24 @@ export default function App() {
           </SidebarSection>
 
           <section>
-            <h3 className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 lg:mb-4">Relic Discovery</h3>
-            <div className="space-y-2 lg:space-y-3">
-              <div className="flex items-center justify-between p-2 lg:p-3 bg-slate-800/30 rounded border border-slate-700/30">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+            <h3 className="panel-heading font-bold text-slate-500 uppercase">Relic Discovery</h3>
+            <div className="relic-stats">
+              <div className="flex items-center justify-between p-1.5 bg-slate-800/30 rounded border border-slate-700/30">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
                     <Trophy size={14} className="text-amber-500" />
                   </div>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Total Relics</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Total Relics</span>
                 </div>
                 <span className="font-mono text-xs font-bold text-amber-500">{gameState?.stats.relicsCollected} / {REQUIRED_RELIC_COUNT}</span>
               </div>
               
-              <div className="flex items-center justify-between p-2 lg:p-3 bg-slate-800/30 rounded border border-slate-700/30">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                    <Skull size={14} className="text-red-500" />
+              <div className="flex items-center justify-between p-1.5 bg-slate-800/30 rounded border border-slate-700/30">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                    <StatIcon src={statSymbols.traps} fallback={<Skull size={14} className="text-red-500" />} />
                   </div>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Traps Sprung</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Caches Disarmed</span>
                 </div>
                 <span className="font-mono text-xs font-bold text-red-400">{gameState?.stats.trapsTriggered}</span>
               </div>
@@ -626,7 +705,7 @@ export default function App() {
           </section>
 
           <SidebarSection title={`${activeCharacter.label} Skills`}>
-            <div className="grid grid-cols-2 gap-3 text-white">
+            <div className="skill-grid grid grid-cols-2 text-white">
               {activeCharacter.skills.map((skill) => {
                 const availability = gameState ? canUseCharacterSkill(skill, gameState) : { canUse: false };
                 const Icon = getSkillIcon(skill.id);
@@ -636,19 +715,19 @@ export default function App() {
                   <button
                     key={skill.id}
                     onClick={() => handleUseSkill(skill)}
-                    disabled={!availability.canUse}
+                    disabled={!!combat || !availability.canUse}
                     title={availability.reason || skill.description}
                     className={cn(
-                      "flex min-h-24 flex-col items-center justify-between p-3 bg-slate-800 border border-slate-700 rounded group transition-all shadow-lg active:scale-95",
+                      "skill-button grid items-center p-1.5 bg-slate-800 border border-slate-700 rounded group transition-all shadow-lg active:scale-95",
                       availability.canUse
                         ? "hover:border-amber-500/50 hover:bg-slate-700/50"
                         : "opacity-55 cursor-not-allowed"
                     )}
                   >
-                    <Icon size={18} className="text-slate-500 group-hover:text-amber-500 transition-colors" />
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 group-hover:text-slate-200 text-center leading-tight">{skill.label}</span>
-                    <span className="text-[9px] text-slate-500 text-center leading-tight line-clamp-2">{skill.description}</span>
-                    <span className="text-[10px] text-amber-500 font-mono">{cooldown > 0 ? `${cooldown}d` : getSkillCostLabel(skill.cost)}</span>
+                    <Icon size={14} className="text-slate-500 group-hover:text-amber-500 transition-colors" />
+                    <span className="text-[10px] uppercase font-bold tracking-wide text-slate-400 group-hover:text-slate-200 text-center leading-tight">{skill.label}</span>
+                    <span className="skill-description text-[10px] text-slate-400 leading-tight">{skill.description}</span>
+                    <span className="skill-cost text-[10px] text-amber-500 font-mono">{cooldown > 0 ? `${cooldown}d` : getSkillCostLabel(skill.cost)}</span>
                   </button>
                 );
               })}
@@ -657,7 +736,7 @@ export default function App() {
         </aside>
 
         {/* Map Visualization */}
-        <section className="min-h-0 p-2 sm:p-3 lg:p-6 bg-slate-950 flex flex-col items-center justify-center relative shadow-[inset_0_0_100px_rgba(0,0,0,0.4)] overflow-hidden">
+        <section className="map-area min-h-0 p-2 sm:p-3 lg:p-6 bg-slate-950 flex flex-col items-center justify-center relative shadow-[inset_0_0_100px_rgba(0,0,0,0.4)] overflow-hidden">
           <div className="hidden sm:block absolute top-3 lg:top-4 right-3 lg:right-8 bg-slate-900 px-3 py-1 rounded text-[10px] font-mono border border-slate-800 text-slate-500 uppercase tracking-widest shadow-lg">
             Region ID: #49F-22B
           </div>
@@ -679,6 +758,7 @@ export default function App() {
                 idleElapsedMs={idleElapsedMs}
                 playerAnimation={playerAnimation}
                 playerFacing={playerFacing}
+                combat={combat}
                 spriteClockMs={spriteClockMs}
                 onClick={() => handleMove(tile.x, tile.y)}
               />
@@ -691,8 +771,8 @@ export default function App() {
           <div className="min-h-0 flex flex-1 flex-col p-2 sm:p-3 lg:p-6 border-b border-slate-800">
             <h3 className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 lg:mb-4">Expedition Log</h3>
             <div className="min-h-0 flex-1 overflow-y-auto pr-2 custom-scrollbar font-mono text-[11px]">
-              {logs.map((log, i) => (
-                <LogItem key={i} message={log.message} type={log.type} timestamp={log.timestamp} />
+              {logs.map((log) => (
+                <LogItem key={log.id} message={log.message} type={log.type} timestamp={log.timestamp} count={log.count} />
               ))}
               {logs.length === 0 && <div className="text-slate-700 italic">No activity recorded...</div>}
             </div>
@@ -700,6 +780,7 @@ export default function App() {
           
           <div className="shrink-0 p-2 sm:p-3 lg:p-6 space-y-2 lg:space-y-3">
              <button 
+              disabled={!!combat}
               onClick={handleEndTurn}
               className="w-full py-2.5 lg:py-4 bg-amber-600 hover:bg-amber-500 text-white font-bold uppercase tracking-widest rounded shadow-xl shadow-amber-900/20 transform hover:-translate-y-0.5 transition-all active:translate-y-0 flex items-center justify-center gap-2"
             >
@@ -714,7 +795,7 @@ export default function App() {
               >
                 Reset map
               </button>
-              <button className="py-2 lg:py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold uppercase text-[10px] tracking-widest rounded opacity-50 cursor-not-allowed">
+              <button onClick={() => setAudioSettingsOpen(true)} className="py-2 lg:py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold uppercase text-[10px] tracking-widest rounded">
                 Settings
               </button>
             </div>
@@ -722,6 +803,17 @@ export default function App() {
         </aside>
       </main>
 
+      {audioSettingsOpen && <div className="encounter-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onKeyDown={event => { if (event.key === 'Escape') setAudioSettingsOpen(false); }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="audio-title" className="encounter-frame w-full max-w-sm p-6 text-slate-200">
+          <h2 id="audio-title" className="mb-5 text-lg font-bold text-amber-200">Audio</h2>
+          <p role="status" className="mb-4 text-xs text-slate-300">{musicStatus}</p>
+          {(['music', 'sounds'] as const).map(channel => <label key={channel} className="mb-5 block text-sm">
+            <span className="flex justify-between mb-2"><span>{channel === 'music' ? 'Music' : 'Sound effects'}</span><span>{volumes[channel] === 0 ? 'Muted' : `${Math.round(volumes[channel] * 100)}%`}</span></span>
+            <input aria-label={channel === 'music' ? 'Music volume' : 'Sound effects volume'} type="range" min="0" max="1" step="0.05" value={volumes[channel]} onChange={event => setVolumes(current => ({ ...current, [channel]: Number(event.target.value) }))} className="w-full accent-amber-400" />
+          </label>)}
+          <button autoFocus onClick={() => setAudioSettingsOpen(false)} className="encounter-choice w-full py-2">Done</button>
+        </section>
+      </div>}
       <footer className="hidden sm:flex shrink-0 h-8 lg:h-10 bg-slate-950 border-t border-slate-900 items-center justify-between px-4 lg:px-8 text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em]">
         <span>Treasure Hunter v{appVersion}</span>
         <span>Explore. Recover. Escape.</span>
@@ -751,11 +843,12 @@ interface TileComponentProps {
   playerAnimation: CharacterAnimationState;
   playerFacing: HorizontalFacing;
   spriteClockMs: number;
+  combat: { targetId: string; startedAt: number; dx: number; dy: number } | null;
   onClick: () => void;
 }
 
 const LegendItem = ({ label, color, icon: Icon, spriteBox }: { label: string, color: string, icon?: any, spriteBox?: SpriteBoxModule }) => (
-  <div className="flex items-center gap-3 py-1">
+  <div className="legend-item flex items-center gap-2">
     <div className={cn("w-4 h-4 rounded shadow-inner border border-white/10 overflow-hidden", color)}>
       {spriteBox && <SpriteBox spriteBox={spriteBox} seed={`legend:${label}`} alt="" imageClassName="object-fill" />}
       {Icon && <Icon size={10} className="text-white mx-auto mt-[1px]" />}
@@ -782,7 +875,7 @@ function getPlayerAnimationMotion(animation: CharacterAnimationState) {
   }
 }
 
-const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, onClick }) => {
+const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, combat, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const getTileColor = (type: TileType) => {
     switch (type) {
@@ -798,7 +891,12 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
 
   const terrainSpriteBox = tileTerrainSpriteBoxes[tile.type];
   const entitySpriteBox = tile.entity ? entitySpriteBoxes[tile.entity] : undefined;
-  const visualSpriteBox = tile.visual
+  const isCombatTarget = combat?.targetId === tile.id;
+  const combatElapsedMs = combat ? Math.max(0, performance.now() - combat.startedAt) : 0;
+  const attackAssetKey = tile.visual?.assetKey ?? (tile.visual
+    ? `${['turret', 'cannon', 'fireTurret', 'magicTurret'].includes(tile.visual.id) ? 'defenses' : 'enemies'}/${tile.visual.id.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)}`
+    : '');
+  const visualSpriteBox = isCombatTarget ? getObjectSpriteBox(attackAssetKey, 'attack') : tile.visual
     ? (tile.visual.assetKey ? getObjectSpriteBox(tile.visual.assetKey, tile.visual.action) : undefined)
       ?? visualSpriteBoxes[tile.visual.id]
     : undefined;
@@ -806,6 +904,8 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
     visualTone: tile.visual?.tone,
     entityType: tile.entity,
   });
+  const actorIdleDuration = getActorIdleDuration(tile, visualSpriteBox, isCombatTarget);
+  const actorIdleElapsedMs = useRandomIdle(actorIdleDuration, `${tile.id}:${tile.visual?.assetKey ?? tile.visual?.id}`);
   const tileLabel = tile.type.replace('_', ' ');
   const edgeClassName = terrain?.exposedEdges.map((edge) => `terrain-edge-${edge}`);
   const isWaterTerrain = tile.type === TileType.WATER || tile.type === TileType.DEEP_WATER;
@@ -891,10 +991,13 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
       </div>
       
       {tile.discovered && visualSpriteBox && !entitySpriteBox && !tile.visualConsumed && (
-        <div data-layer="object" className={assetPresentation.containerClassName}>
-          <SpriteBox spriteBox={visualSpriteBox} seed={tile.id} elapsedMs={spriteClockMs} level={tile.visual?.level}
+        <motion.div data-layer="object" data-combat={isCombatTarget ? 'enemy' : undefined}
+          animate={isCombatTarget ? { x: [0, -combat!.dx * 4, 0], y: [0, -combat!.dy * 4, 0] } : { x: 0, y: 0 }}
+          transition={isCombatTarget ? { duration: 0.28, repeat: 3 } : { duration: 0 }}
+          className={assetPresentation.containerClassName}>
+          <SpriteBox spriteBox={visualSpriteBox} seed={tile.id} elapsedMs={isCombatTarget ? combatElapsedMs : actorIdleDuration > 0 ? actorIdleElapsedMs : spriteClockMs} level={tile.visual?.level}
             alt={tile.visual!.label} imageClassName={assetPresentation.imageClassName} />
-        </div>
+        </motion.div>
       )}
 
       {tile.discovered && entitySpriteBox && (!tile.entityFound || tile.entity === EntityType.EXIT) && (
@@ -921,15 +1024,16 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, isCurrent,
         {isCurrent && (
           <motion.div 
             layoutId="player"
-            animate={getPlayerAnimationMotion(playerAnimation)}
-            transition={{ duration: 0.28, ease: 'easeOut' }}
+            data-combat={combat ? 'hero' : undefined}
+            animate={combat ? { x: [0, combat.dx * 4, 0], y: [0, combat.dy * 4, 0] } : getPlayerAnimationMotion(playerAnimation)}
+            transition={{ duration: 0.28, ease: 'easeOut', repeat: combat ? 3 : 0 }}
             className="absolute inset-0 z-30 flex items-center justify-center overflow-visible"
           >
-            <div className="relative h-[118%] w-[118%]">
+            <div data-layer="hero" className="relative h-full w-full">
               <SpriteBox
                 spriteBox={activeCharacter.spriteBoxes[playerAnimation]}
                 seed={`player:${activeCharacter.id}:${playerAnimation}`}
-                elapsedMs={playerAnimation === 'idle' ? idleElapsedMs : spriteClockMs}
+                elapsedMs={combat ? combatElapsedMs : playerAnimation === 'idle' ? idleElapsedMs : spriteClockMs}
                 alt={activeCharacter.label}
                 imageClassName={cn(
                   "object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.65)] transition-transform duration-150",

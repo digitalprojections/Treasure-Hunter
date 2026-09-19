@@ -14,7 +14,6 @@ const visualPools: Record<TileType, TileVisual[]> = {
     { id: 'fish', label: 'Fish', tone: 'wildlife' },
     { id: 'turtle', label: 'Turtle', tone: 'wildlife' },
     { id: 'woodBridge', label: 'Wood Bridge', tone: 'landmark' },
-    { id: 'waypoint', label: 'Waypoint', tone: 'landmark' },
   ],
   [TileType.DEEP_WATER]: [
     { id: 'fish', label: 'Fish', tone: 'wildlife' },
@@ -38,8 +37,6 @@ const visualPools: Record<TileType, TileVisual[]> = {
     { id: 'gold', label: 'Gold Cache', tone: 'resource' },
     { id: 'wood', label: 'Wood Pile', tone: 'resource' },
     { id: 'goblin', label: 'Goblin Camp', tone: 'threat' },
-    { id: 'potion', label: 'Potion Sign', tone: 'landmark' },
-    { id: 'star', label: 'Star Shrine', tone: 'landmark' },
   ],
   [TileType.FOREST]: [
     { id: 'stump', label: 'Old Stump', tone: 'ambient' },
@@ -48,7 +45,6 @@ const visualPools: Record<TileType, TileVisual[]> = {
     { id: 'boar', label: 'Boar Trail', tone: 'wildlife' },
     { id: 'wood', label: 'Wood Pile', tone: 'resource' },
     { id: 'barricade', label: 'Barricade', tone: 'landmark' },
-    { id: 'scroll', label: 'Scroll Marker', tone: 'landmark' },
     { id: 'troll', label: 'Troll Path', tone: 'threat' },
     { id: 'turret', label: 'Old Turret', tone: 'threat' },
   ],
@@ -61,7 +57,6 @@ const visualPools: Record<TileType, TileVisual[]> = {
     { id: 'magicGate', label: 'Magic Gate', tone: 'landmark' },
     { id: 'altar', label: 'Altar', tone: 'landmark' },
     { id: 'teleport', label: 'Teleport Circle', tone: 'landmark' },
-    { id: 'key', label: 'Key Marker', tone: 'landmark' },
     { id: 'cannon', label: 'Cannon Nest', tone: 'threat' },
     { id: 'fireTurret', label: 'Fire Turret', tone: 'threat' },
     { id: 'magicTurret', label: 'Magic Turret', tone: 'threat' },
@@ -118,8 +113,10 @@ export function generateIsland(): Tile[] {
     }
   }
 
-  // Populate land tiles with non-critical entities.
-  const landTiles = tiles.filter(t => t.type !== TileType.WATER && t.type !== TileType.DEEP_WATER);
+  // Reserve a landing tile before placing any entities or scenery.
+  const landing = getStartingPosition(tiles);
+  const isLanding = (tile: Tile) => tile.x === landing.x && tile.y === landing.y;
+  const landTiles = tiles.filter(t => t.type !== TileType.WATER && t.type !== TileType.DEEP_WATER && !isLanding(t));
   landTiles.forEach(tile => {
     const rand = Math.random();
     if (rand < 0.05) {
@@ -132,7 +129,7 @@ export function generateIsland(): Tile[] {
   });
 
   // Place one exit tile on the coast
-  const coastalSand = tiles.filter(t => t.type === TileType.SAND);
+  const coastalSand = landTiles.filter(t => t.type === TileType.SAND);
   if (coastalSand.length > 0) {
     const exitTile = coastalSand[Math.floor(Math.random() * coastalSand.length)];
     exitTile.entity = EntityType.EXIT;
@@ -148,7 +145,7 @@ export function generateIsland(): Tile[] {
   }
 
   tiles.forEach(tile => {
-    if (!tile.entity) {
+    if (!tile.entity && !isLanding(tile)) {
       tile.visual = pickVisual(tile.type);
     }
   });
@@ -157,12 +154,11 @@ export function generateIsland(): Tile[] {
 }
 
 export function getStartingPosition(tiles: Tile[]): { x: number, y: number } {
-  // Find a sand tile near the edge to start
-  const sandTiles = tiles.filter(t => t.type === TileType.SAND);
-  if (sandTiles.length > 0) {
-    const start = sandTiles[Math.floor(Math.random() * sandTiles.length)];
-    return { x: start.x, y: start.y };
-  }
-  // Fallback to center
-  return { x: 5, y: 5 };
+  const emptyLand = tiles.filter(t =>
+    t.type !== TileType.WATER && t.type !== TileType.DEEP_WATER && !t.entity && !t.visual);
+  const sandTiles = emptyLand.filter(t => t.type === TileType.SAND);
+  const candidates = sandTiles.length ? sandTiles : emptyLand;
+  if (!candidates.length) throw new Error('Map has no empty land tile for the hero.');
+  const start = candidates[Math.floor(Math.random() * candidates.length)];
+  return { x: start.x, y: start.y };
 }

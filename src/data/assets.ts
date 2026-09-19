@@ -3,81 +3,74 @@ import { resolveSpriteBoxAsset } from '../utils/spritebox';
 import { characterAnimations } from './characterAnimations';
 import { EntityType, TileType, TileVisualId } from '../types';
 
-const archerHero = findAsset('heroes/archer/archer.png');
-const archerHeroCutout = findAsset('heroes/archer/bg_removed__archer_.png');
-const engineerHero = findAsset('heroes/engineer/engineer.png');
-const engineerHeroCutout = findAsset('heroes/engineer/bg_removed__engineer.png');
-const explorerHero = findAsset('heroes/explorer/explorer.png');
-const explorerHeroCutout = findAsset('heroes/explorer/bg_removed__explorer_.png');
-const scoutHero = findAsset('heroes/scout/scout.png');
-const scoutHeroCutout = findAsset('heroes/scout/bg_removed__scout.png');
-const soldierHero = findAsset('heroes/soldier/soldier.png');
-const soldierHeroCutout = findAsset('heroes/soldier/bg_removed__soldier.png');
+const archerHero = findAsset('heroes/archer');
+const archerHeroCutout = findAsset('heroes/archer', true);
+const engineerHero = findAsset('heroes/engineer');
+const engineerHeroCutout = findAsset('heroes/engineer', true);
+const explorerHero = findAsset('heroes/explorer');
+const explorerHeroCutout = findAsset('heroes/explorer', true);
+const scoutHero = findAsset('heroes/scout');
+const scoutHeroCutout = findAsset('heroes/scout', true);
+const soldierHero = findAsset('heroes/soldier');
+const soldierHeroCutout = findAsset('heroes/soldier', true);
 
-const goblinEnemy = findAsset('enemies/goblin.png');
-const harpyEnemy = findAsset('enemies/harpy.png');
-const orcEnemy = findAsset('enemies/orc.png');
-const skeletonEnemy = findAsset('enemies/skeleton.png');
-const trollEnemy = findAsset('enemies/troll.png');
-const wolfEnemy = findAsset('enemies/wolf.png');
+const goblinEnemy = findAsset('enemies/goblin');
+const harpyEnemy = findAsset('enemies/harpy');
+const orcEnemy = findAsset('enemies/orc');
+const skeletonEnemy = findAsset('enemies/skeleton');
+const trollEnemy = findAsset('enemies/troll');
+const wolfEnemy = findAsset('enemies/wolf');
 
-const boarWildlife = findAsset('wildlife/boar.png');
-const deerWildlife = findAsset('wildlife/deer.png');
-const falconWildlife = findAsset('wildlife/falcon.png');
-const fishWildlife = findAsset('wildlife/fish.png');
-const rabbitWildlife = findAsset('wildlife/rabbit.png');
-const turtleWildlife = findAsset('wildlife/turtle.png');
+const boarWildlife = findAsset('wildlife/boar');
+const deerWildlife = findAsset('wildlife/deer');
+const falconWildlife = findAsset('wildlife/falcon');
+const fishWildlife = findAsset('wildlife/fish');
+const rabbitWildlife = findAsset('wildlife/rabbit');
+const turtleWildlife = findAsset('wildlife/turtle');
 
-const chestResource = findAsset('resources/chest.png');
-const crystalResource = findAsset('resources/crystal.png');
-const goldResource = findAsset('resources/gold.png');
-const goldMineResource = findAsset('resources/gold_mine.png');
-const stoneResource = findAsset('resources/stone.png');
-const woodResource = findAsset('resources/wood.png');
+const chestResource = findAsset('resources/chest');
+const crystalResource = findAsset('resources/crystal');
+const goldResource = findAsset('resources/gold');
+const goldMineResource = findAsset('resources/gold_mine');
+const stoneResource = findAsset('resources/stone');
+const woodResource = findAsset('resources/wood');
 
-const cactusTerrain = findAsset('terrain/cactus.png');
-const desertTerrain = findAsset('terrain/desert.png');
-const flowerTerrain = findAsset('terrain/flower.png');
-const forestTerrain = findAsset('terrain/forest.png');
-const mountainTerrain = findAsset('terrain/mountain.png');
-const plainsTerrain = findAsset('terrain/plains.png');
-const shallowWaterTerrain = findAsset('terrain/shallow_water.png');
-const stumpTerrain = findAsset('terrain/stump.png');
+const cactusTerrain = findAsset('terrain/cactus');
+const desertTerrain = findAsset('terrain/desert');
+const flowerTerrain = findAsset('terrain/flower');
+const forestTerrain = findAsset('terrain/forest');
+const mountainTerrain = findAsset('terrain/mountain');
+const plainsTerrain = findAsset('terrain/plains');
+const shallowWaterTerrain = findAsset('terrain/shallow_water');
+const stumpTerrain = findAsset('terrain/stump');
 
-const altarStructure = findAsset('structures/altar.png');
-const portStructure = findAsset('structures/port.png');
-const roadSignStructure = findAsset('structures/road_sign.png');
-const ruinsStructure = findAsset('structures/ruins.png');
-const teleportStructure = findAsset('structures/teleport.png');
-const villageStructure = findAsset('structures/village.png');
-const wellStructure = findAsset('structures/well.png');
+const altarStructure = findAsset('structures/altar');
+const portStructure = findAsset('structures/port');
+const roadSignStructure = findAsset('structures/road_sign');
+const ruinsStructure = findAsset('structures/ruins');
+const teleportStructure = findAsset('structures/teleport');
+const villageStructure = findAsset('structures/village');
+const wellStructure = findAsset('structures/well');
 
-const barricadeBarrier = findAsset('barriers/barricade.png');
-const ironGateBarrier = findAsset('barriers/iron_gate.png');
-const magicGateBarrier = findAsset('barriers/magic_gate.png');
-const stoneBridgeBarrier = findAsset('barriers/stone_bridge.png');
-const stoneGateBarrier = findAsset('barriers/stone_gate.png');
-const woodBridgeBarrier = findAsset('barriers/wood_bridge.png');
-const woodenGateBarrier = findAsset('barriers/wooden_gate.png');
+const barricadeBarrier = findAsset('barriers/barricade');
+const ironGateBarrier = findAsset('barriers/iron_gate');
+const magicGateBarrier = findAsset('barriers/magic_gate');
+const stoneBridgeBarrier = findAsset('barriers/stone_bridge');
+const stoneGateBarrier = findAsset('barriers/stone_gate');
+const woodBridgeBarrier = findAsset('barriers/wood_bridge');
+const woodenGateBarrier = findAsset('barriers/wooden_gate');
 
 
-const bombSymbol = findAsset('symbols/bomb_symbol.png');
-const dangerSymbol = findAsset('symbols/danger.png');
-const discoveredSymbol = findAsset('symbols/discovered_symbol.png');
-const fogSymbol = findAsset('symbols/fog.png');
-const keySymbol = findAsset('symbols/key_symbol.png');
-const potionSymbol = findAsset('symbols/potion_symbol.png');
-const questSymbol = findAsset('symbols/quest.png');
-const randomSymbol = findAsset('symbols/random.png');
-const scrollSymbol = findAsset('symbols/scroll_symbol.png');
-const starSymbol = findAsset('symbols/star_symbol.png');
-const waypointSymbol = findAsset('symbols/waypoint_symbol.png');
+const dangerSymbol = findAsset('symbols/danger');
+const fogSymbol = findAsset('symbols/fog');
+const questSymbol = findAsset('symbols/quest');
+const randomSymbol = findAsset('symbols/random');
 
 export const heroAssets = {
   archer: archerHero,
   engineer: engineerHero,
   explorer: explorerHero,
-  mage: findAsset('heroes/mage/mage.png'),
+  mage: findAsset('heroes/mage'),
   scout: scoutHero,
   soldier: soldierHero,
 } as const;
@@ -86,7 +79,7 @@ export const heroCutoutAssets = {
   archer: archerHeroCutout,
   engineer: engineerHeroCutout,
   explorer: explorerHeroCutout,
-  mage: findAsset('heroes/mage/mage.png'),
+  mage: findAsset('heroes/mage'),
   scout: scoutHeroCutout,
   soldier: soldierHeroCutout,
 } as const;
@@ -159,17 +152,10 @@ export const defenseAssets = Object.fromEntries(
 );
 
 export const symbolAssets = {
-  bomb: bombSymbol,
   danger: dangerSymbol,
-  discovered: discoveredSymbol,
   fog: fogSymbol,
-  key: keySymbol,
-  potion: potionSymbol,
   quest: questSymbol,
   random: randomSymbol,
-  scroll: scrollSymbol,
-  star: starSymbol,
-  waypoint: waypointSymbol,
 } as const;
 
 export const tileTerrainAssets: Record<TileType, string> = {
@@ -206,18 +192,14 @@ export const visualAssetPools: Record<TileVisualId, readonly string[]> = {
   goblin: [enemyAssets.goblin],
   harpy: [enemyAssets.harpy],
   ironGate: [barrierAssets.ironGate],
-  key: [symbolAssets.key],
   magicGate: [barrierAssets.magicGate],
   magicTurret: defenseAssets.magicTurret.assets.map(asset => asset.src),
   orc: [enemyAssets.orc],
-  potion: [symbolAssets.potion],
   quest: [symbolAssets.quest],
   rabbit: [wildlifeAssets.rabbit],
   random: [symbolAssets.random],
   roadSign: [structureAssets.roadSign],
-  scroll: [symbolAssets.scroll],
   skeleton: [enemyAssets.skeleton],
-  star: [symbolAssets.star],
   stone: [resourceAssets.stone],
   stoneBridge: [barrierAssets.stoneBridge],
   stoneGate: [barrierAssets.stoneGate],
@@ -227,7 +209,6 @@ export const visualAssetPools: Record<TileVisualId, readonly string[]> = {
   turret: defenseAssets.turret.assets.map(asset => asset.src),
   turtle: [wildlifeAssets.turtle],
   village: [structureAssets.village],
-  waypoint: [symbolAssets.waypoint],
   well: [structureAssets.well],
   wolf: [enemyAssets.wolf],
   wood: [resourceAssets.wood],

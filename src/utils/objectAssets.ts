@@ -2,6 +2,7 @@ import { createLooperSpriteBox, createSpriteAsset, createStaticSpriteBox,
   type LooperSpriteBox, type SpriteBoxAsset, type StaticSpriteBox } from './spritebox';
 
 export interface ObjectAssetSet {
+  usage?: 'world' | 'hud';
   cutout?: SpriteBoxAsset;
   static?: StaticSpriteBox;
   actions: Record<string, LooperSpriteBox>;
@@ -16,8 +17,10 @@ export function discoverObjectAssets(files: Record<string, string>): ObjectAsset
   for (const [rawPath, src] of Object.entries(files)) {
     const path = rawPath.replaceAll('\\', '/');
     const match = /(?:^|\/)assets\/([a-z_]+)\/([a-z][a-z0-9_]*)\/(.+)\.(?:png|webp|jpe?g)$/i.exec(path);
-    if (!match || !domains.has(match[1])) continue;
+    if (!match || !domains.has(match[1]) || !/^[a-z][a-z0-9_]*$/.test(match[2])) continue;
     const [, domain, type, relative] = match;
+    const hudOnly = domain === 'symbols' && type.endsWith('_symbol');
+    if (/_symbol(?:[._/ -]|$)/i.test(`${type}/${relative}`) && !hudOnly) continue;
     let action: string | undefined;
     let mode: Entry['mode'];
     let index: number;
@@ -43,7 +46,7 @@ export function discoverObjectAssets(files: Record<string, string>): ObjectAsset
   for (const { object, action, entries } of groups.values()) {
     entries.sort((a, b) => a.index - b.index);
     const sources = entries.map(entry => entry.asset) as [SpriteBoxAsset, ...SpriteBoxAsset[]];
-    const set: ObjectAssetSet = registry[object] ??= { actions: Object.create(null) };
+    const set: ObjectAssetSet = registry[object] ??= { actions: Object.create(null), usage: object.startsWith('symbols/') && object.endsWith('_symbol') ? 'hud' : 'world' };
     if (action === '$cutout') set.cutout = sources[0];
     else if (action) set.actions[action] = createLooperSpriteBox(`${object}/${action}`, object, sources, 140);
     else {

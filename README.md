@@ -6,6 +6,7 @@ A procedural exploration game where you play as an island explorer revealing a h
 The island is covered in fog. You must move your explorer to reveal adjacent tiles, manage your supplies, and locate the three ancient relics required to signal for extraction.
 
 ### Core Mechanics
+- **Combat**: Click an adjacent enemy (including diagonally) to exchange attacks from separate tiles. The hero stays in place. Combat resolves once after the animation, applying the existing stamina cost and loot; click the cleared tile again to enter it. Movement, skills and resting are locked during the exchange; resetting the map cancels it.
 - **Movement**: Move to any adjacent tile (including diagonals). Each move costs **1 Stamina**.
 - **Stamina**: You start with 20 stamina. Resting (Ending the Turn) recovers 10 stamina. If you run out of moves, you must rest for the day.
 - **Extraction**: Find the **Extraction Ship** (marked with a green ship icon) after collecting all 3 relics to move to the next island.
@@ -68,3 +69,7 @@ not in this static game bundle.
 Run `npm run check:branding` to check product names, page metadata, and version consistency before release.
 
 The hero rests between idle animations, playing one cycle after a random 4–10 second pause. Movement and skills interrupt idle playback.
+
+Trapped caches randomly grant 1–3 gems and cost 2–5 stamina total, including entry. Both amounts roll independently on acceptance. Five stamina is required to cover the maximum cost; only the rolled cost is spent. The offer is shown before accepting; leaving costs nothing. Recovery is one-time. Ward reveals caches without collecting them.
+
+Strange markers offer equal chances of gaining 20 gold or losing up to 20 gold, for 1 stamina total. The choice is shown before accepting, and each marker resolves only once. Gold never becomes negative.

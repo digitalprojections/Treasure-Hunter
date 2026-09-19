@@ -10,14 +10,14 @@ test('empty folders and absent objects resolve to a safe missing-art marker', ()
   assert.ok(resolveSpriteBoxAsset(box, '').src.startsWith('data:image/svg+xml,'));
 });
 
-test('missing idle uses a still from the same object, never animating damage', () => {
+test('missing idle never substitutes damage art', () => {
   const registry = discoverObjectAssets({
     'assets/heroes/engineer/damage/export_002.png': '/two',
     'assets/heroes/engineer/damage/export_001.png': '/one',
   });
   const idle = selectObjectSpriteBox(registry, 'heroes/engineer');
   assert.equal(idle.kind, 'static');
-  assert.equal(resolveSpriteBoxAsset(idle, '', 9999).src, '/one');
+  assert.ok(resolveSpriteBoxAsset(idle, '', 9999).src.startsWith('data:image/svg+xml,'));
   assert.equal(selectObjectSpriteBox(registry, 'heroes/engineer', 'damage').kind, 'looper');
 });
 
