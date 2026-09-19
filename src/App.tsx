@@ -143,6 +143,21 @@ export default function App() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [islandNumber, setIslandNumber] = useState(0);
   const [tileReveals, setTileReveals] = useState<Record<string, TileRevealEffect>>({});
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const mapViewport = useRef<HTMLElement | null>(null);
+  const centerHero = useCallback(() => {
+    const viewport = mapViewport.current;
+    const hero = viewport?.querySelector<HTMLElement>('.tile-current-hero');
+    if (!viewport || !hero || window.innerWidth >= 1024) return;
+    const bounds = viewport.getBoundingClientRect(), target = hero.getBoundingClientRect();
+    viewport.scrollTo({ left: viewport.scrollLeft + target.left - bounds.left - (viewport.clientWidth - target.width) / 2,
+      top: viewport.scrollTop + target.top - bounds.top - (viewport.clientHeight - target.height) / 2 });
+  }, []);
+  useEffect(() => {
+    const frame = requestAnimationFrame(centerHero);
+    window.addEventListener('resize', centerHero);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('resize', centerHero); };
+  }, [islandNumber, centerHero]);
   const revealRevision = useRef(0);
   const pendingRevealKind = useRef<TileRevealKind>('regular');
   const previousRevealState = useRef<RevealSnapshot | null>(null);
@@ -624,9 +639,9 @@ export default function App() {
         </div>
       )}
       {/* Header */}
-      <header className="shrink-0 bg-slate-800/50 border-b border-slate-700 flex flex-wrap lg:flex-nowrap items-center gap-2 px-2 sm:px-4 lg:px-6 py-2 justify-between shadow-2xl z-20 backdrop-blur-sm">
-        <div className="min-w-0 flex flex-1 flex-wrap lg:flex-nowrap items-center gap-2 sm:gap-4">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+      <header className="game-header shrink-0 bg-slate-800/50 border-b border-slate-700 flex flex-wrap lg:flex-nowrap items-center gap-2 px-2 sm:px-4 lg:px-6 py-2 justify-between shadow-2xl z-20 backdrop-blur-sm">
+        <div className="header-primary min-w-0 flex flex-1 flex-wrap lg:flex-nowrap items-center gap-2 sm:gap-4">
+          <div className="game-brand flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-amber-500 rounded flex shrink-0 items-center justify-center text-slate-900 font-bold shadow-lg shadow-amber-500/20">
               <MapIcon size={20} />
             </div>
@@ -640,7 +655,7 @@ export default function App() {
 
           <div className="hidden lg:block h-8 w-[1px] bg-slate-700 mx-1" />
 
-          <div className="flex min-w-0 flex-1 gap-2 sm:gap-3 overflow-x-auto pb-1 lg:pb-0">
+          <div className="resource-strip flex min-w-0 flex-1 gap-2 sm:gap-3 overflow-x-auto pb-1 lg:pb-0">
             <ResourceItem icon={Coins} image={statSymbols.gold} value={Math.max(0, gameState?.resources.gold || 0)} label="Gold" color="bg-amber-500" />
             <ResourceItem icon={Trees} image={statSymbols.wood} value={gameState?.resources.wood || 0} label="Wood" color="bg-emerald-500" />
             <ResourceItem icon={MountainIcon} image={statSymbols.stone} value={gameState?.resources.stone || 0} label="Stone" color="bg-slate-400" />
@@ -649,8 +664,8 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-          <div className="flex gap-3 sm:gap-4 items-center bg-slate-900/80 px-3 sm:px-4 py-1.5 rounded-full border border-slate-700 shadow-inner">
+        <div className="header-account flex shrink-0 items-center gap-2 sm:gap-4">
+          <div className="day-stamina flex gap-3 sm:gap-4 items-center bg-slate-900/80 px-3 sm:px-4 py-1.5 rounded-full border border-slate-700 shadow-inner">
             <div className="flex flex-col items-center">
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Day</span>
               <span className="text-xs font-mono font-bold text-amber-500">{gameState?.stats.daysElapsed}</span>
@@ -680,9 +695,15 @@ export default function App() {
         </div>
       </header>
 
+      <div className="mobile-vitals"><span>Day {gameState?.stats.daysElapsed}</span><span>Stamina <strong>{gameState?.stamina}/{gameState?.maxStamina}</strong></span></div>
+      <div className="mobile-map-toolbar">
+        <button onClick={() => setMobilePanelOpen(open => !open)} aria-expanded={mobilePanelOpen} aria-controls="expedition-panel">{mobilePanelOpen ? 'Close details' : 'Skills & details'}</button>
+        <span role="status">{(gameState?.stats.relicsCollected ?? 0) >= REQUIRED_RELIC_COUNT ? 'All relics recovered · Return to ship' : `Relics ${gameState?.stats.relicsCollected ?? 0}/${REQUIRED_RELIC_COUNT}`}</span>
+        <button onClick={centerHero}>Center hero</button>
+      </div>
       <main className="game-layout min-h-0 flex-1 grid overflow-hidden">
         {/* Sidebar Controls */}
-        <aside className="expedition-panel min-h-0 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 shadow-2xl z-10">
+        <aside id="expedition-panel" data-mobile-open={mobilePanelOpen} className="expedition-panel min-h-0 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 shadow-2xl z-10">
           <section>
             <h3 className="panel-heading font-bold text-slate-500 uppercase">Current Expedition</h3>
             <div className="expedition-summary">
@@ -787,7 +808,7 @@ export default function App() {
         </aside>
 
         {/* Map Visualization */}
-        <section className="map-area min-h-0 p-2 sm:p-3 lg:p-6 bg-slate-950 flex flex-col items-center justify-center relative shadow-[inset_0_0_100px_rgba(0,0,0,0.4)] overflow-hidden">
+        <section ref={mapViewport} aria-label="Island map" tabIndex={0} className="map-area min-h-0 p-2 sm:p-3 lg:p-6 bg-slate-950 flex flex-col items-center justify-center relative shadow-[inset_0_0_100px_rgba(0,0,0,0.4)] overflow-hidden">
           <div className="hidden sm:block absolute top-3 lg:top-4 right-3 lg:right-8 bg-slate-900 px-3 py-1 rounded text-[10px] font-mono border border-slate-800 text-slate-500 uppercase tracking-widest shadow-lg">
             Region ID: #49F-22B
           </div>
@@ -821,7 +842,7 @@ export default function App() {
         </section>
 
         {/* Bottom Console / Log (Combined better) */}
-        <aside className="min-h-0 flex flex-col bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 shadow-2xl z-10">
+        <aside className="game-console min-h-0 flex flex-col bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 shadow-2xl z-10">
           <div className="min-h-0 flex flex-1 flex-col p-2 sm:p-3 lg:p-6 border-b border-slate-800">
             <h3 className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-2 lg:mb-4">Expedition Log</h3>
             <div className="min-h-0 flex-1 overflow-y-auto pr-2 custom-scrollbar font-mono text-[11px]">
@@ -832,7 +853,7 @@ export default function App() {
             </div>
           </div>
           
-          <div className="shrink-0 p-2 sm:p-3 lg:p-6 space-y-2 lg:space-y-3">
+          <div className="console-actions shrink-0 p-2 sm:p-3 lg:p-6 space-y-2 lg:space-y-3">
              <button 
               disabled={!!combat}
               onClick={handleEndTurn}
