@@ -496,3 +496,7 @@ body,
   .game-console > div:first-child { min-width: 0; border-bottom: 0; padding: 4px 6px; }
   .console-actions { padding-left: 0; }
 }
+
+@media (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
+  .map-area { scroll-behavior: smooth; }
+}

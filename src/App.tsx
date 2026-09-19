@@ -1,3 +1,4 @@
+import { needsCameraFollow } from './utils/mapCamera';
 import { discoveryRewardEffect } from './utils/rewardFeedback';
 import { revealsWithinIsland, type RevealSnapshot, type TileRevealEffect, type TileRevealKind } from './utils/tileReveal';
 import { TileRevealParticles } from './components/TileRevealParticles';
@@ -150,14 +151,25 @@ export default function App() {
     const hero = viewport?.querySelector<HTMLElement>('.tile-current-hero');
     if (!viewport || !hero || window.innerWidth >= 1024) return;
     const bounds = viewport.getBoundingClientRect(), target = hero.getBoundingClientRect();
-    viewport.scrollTo({ left: viewport.scrollLeft + target.left - bounds.left - (viewport.clientWidth - target.width) / 2,
+    viewport.scrollTo({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', left: viewport.scrollLeft + target.left - bounds.left - (viewport.clientWidth - target.width) / 2,
       top: viewport.scrollTop + target.top - bounds.top - (viewport.clientHeight - target.height) / 2 });
   }, []);
   useEffect(() => {
     const frame = requestAnimationFrame(centerHero);
     window.addEventListener('resize', centerHero);
     return () => { cancelAnimationFrame(frame); window.removeEventListener('resize', centerHero); };
-  }, [islandNumber, centerHero]);
+  }, [islandNumber, mobilePanelOpen, centerHero]);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const viewport = mapViewport.current;
+      const hero = viewport?.querySelector<HTMLElement>('.tile-current-hero');
+      if (!viewport || !hero) return;
+      const bounds = viewport.getBoundingClientRect(), target = hero.getBoundingClientRect();
+      if (needsCameraFollow(target.left - bounds.left + target.width / 2,
+        target.top - bounds.top + target.height / 2, viewport.clientWidth, viewport.clientHeight)) centerHero();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [gameState?.playerPos.x, gameState?.playerPos.y, centerHero]);
   const revealRevision = useRef(0);
   const pendingRevealKind = useRef<TileRevealKind>('regular');
   const previousRevealState = useRef<RevealSnapshot | null>(null);
