@@ -4,7 +4,7 @@ import { musicTracksForIsland } from './utils/musicFlow';
 import { MusicPlayer } from './utils/musicPlayer';
 import { discoverAudio, normalizeVolume, type MusicScene, type SoundEvent, type MusicEvent } from './utils/audio';
 
-const catalog = discoverAudio(import.meta.glob<string>('../assets/{music,sounds}/**/*.{mp3,ogg,wav,m4a,webm,MP3,OGG,WAV,M4A,WEBM}', { eager: true, query: '?url', import: 'default' }));
+const catalog = discoverAudio(import.meta.glob<string>(['../assets/{music,sounds}/**/*.{mp3,ogg,wav,m4a,webm,MP3,OGG,WAV,M4A,WEBM}', '!../assets/music/events/demo/**'], { eager: true, query: '?url', import: 'default' }));
 if (catalog.issues.length) console.warn('Audio files outside the folder convention:', catalog.issues);
 const storageKey = 'treasure-hunter-audio';
 function readVolumes() {

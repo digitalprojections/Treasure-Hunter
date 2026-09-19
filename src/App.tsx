@@ -914,6 +914,7 @@ export default function App() {
 
       {audioSettingsOpen && <div className="encounter-overlay fixed inset-0 z-50 flex items-center justify-center p-4" onKeyDown={event => { if (event.key === 'Escape') setAudioSettingsOpen(false); }}>
         <section role="dialog" aria-modal="true" aria-labelledby="audio-title" className="encounter-frame w-full max-w-sm p-6 text-slate-200">
+          <a href="?demo=1" className="encounter-choice block mb-4 py-2 text-center text-sm">Watch cinematic demo</a>
           <h2 id="audio-title" className="mb-5 text-lg font-bold text-amber-200">Audio</h2>
           <p role="status" className="mb-4 text-xs text-slate-300">{musicStatus}</p>
           {(['music', 'sounds'] as const).map(channel => <label key={channel} className="mb-5 block text-sm">

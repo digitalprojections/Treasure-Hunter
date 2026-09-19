@@ -1,0 +1,7 @@
+# Treasure Hunter cinematic demo
+
+Open the game with `?demo=1`, or choose **Watch cinematic demo** in Settings. Press **Begin the journey** to start the soundtrack. The demo has no account, points, stamina, or gameplay API calls. Exit returns to a new normal game. Pause, replay, seek, loop, volume, and gentle effects controls are available. Switching tabs pauses playback.
+
+The dedicated 18x18 island and adjacent-tile route live in `src/utils/demoSequence.ts`. All motion and deterministic particles derive from the audio element playback clock, including after seeks. Strong beats, 16-beat fights, 32-beat spells, three shrine recoveries, and extraction create the sequence. Canvas particle work is bounded to recent cues, with a maximum device pixel ratio of two. Gentle effects disables particles and camera drift.
+
+To replace the theme, update `assets/music/events/demo/sunken.wav`, then run `npm run demo:analyze`. Python requires librosa, numpy, scipy, and soundfile. The checked-in beat map includes source SHA-256, measured duration, estimated tempo, beat timestamps, energy, and onset strength. Beat detection is automatic and may need musical review for a new recording. Rebuild after analysis; the browser does not analyze the song on load. This folder is excluded from normal gameplay audio selection.

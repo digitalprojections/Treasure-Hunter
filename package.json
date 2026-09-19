@@ -1,7 +1,7 @@
 {
   "name": "treasure-hunter",
   "private": true,
-  "version": "0.0.44",
+  "version": "0.0.45",
   "type": "module",
   "scripts": {
     "test:music": "tsx --test src/utils/musicPlayer.test.ts src/utils/musicTransitions.test.ts src/utils/musicFlow.test.ts src/utils/audio.test.ts",
@@ -19,7 +19,8 @@
     "assets:inspect": "tsx scripts/inspect-character-assets.ts",
     "assets:objects": "tsx scripts/inspect-object-assets.ts",
     "test:defense-rendering": "tsx scripts/verify-defense-rendering.ts",
-    "test:gameplay": "tsx --test src/utils/interactions.test.ts"
+    "test:gameplay": "tsx --test src/utils/interactions.test.ts",
+    "demo:analyze": "python scripts/analyze-demo-music.py"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
