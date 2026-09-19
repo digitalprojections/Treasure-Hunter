@@ -988,7 +988,7 @@ function getPlayerAnimationMotion(animation: CharacterAnimationState) {
   }
 }
 
-const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, extractionReady, revealEffect, onRevealComplete, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, combat, onClick }) => {
+export const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, extractionReady, revealEffect, onRevealComplete, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, combat, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const getTileColor = (type: TileType) => {
     switch (type) {
