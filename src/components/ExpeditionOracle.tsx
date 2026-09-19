@@ -1,3 +1,4 @@
+import { ReadingControl } from './ReadingControl';
 import { memo, useMemo, useState } from 'react';
 import { Compass, Sparkles, ChevronRight, X } from 'lucide-react';
 import type { GameState } from '../types';
@@ -12,13 +13,11 @@ export const ExpeditionOracle = memo(function ExpeditionOracle({ state }: { stat
   const context = clues.map(c => c.id).join('|');
   const index = selection.context === context ? selection.index % clues.length : 0;
   const clue = clues[index];
-  const [dismissedOmen, setDismissedOmen] = useState<string | null>(null);
-  const omen = clues[0].id;
-  const dismissed = dismissedOmen === omen;
+  const [dismissed, setDismissed] = useState(true);
   return <>
-    <button className="oracle-launcher" data-visible={dismissed} onClick={()=>setDismissedOmen(null)} aria-label="Open expedition oracle"><Compass size={18}/><span>Oracle</span></button>
+    <ReadingControl><button className="oracle-launcher" aria-expanded={!dismissed} onClick={()=>setDismissed(open=>!open)} aria-label="Open expedition oracle"><Compass size={18}/><span>Oracle</span></button></ReadingControl>
     <section className="expedition-oracle" data-dismissed={dismissed} aria-label="Expedition oracle">
-    <button className="oracle-dismiss" onClick={()=>setDismissedOmen(omen)} aria-label="Dismiss expedition oracle"><X size={16}/></button>
+    <button className="oracle-dismiss" onClick={()=>setDismissed(true)} aria-label="Dismiss expedition oracle"><X size={16}/></button>
     <header className="oracle-heading"><span className="oracle-jewel" aria-hidden="true"/><span>THE ISLAND ORACLE</span><span className="oracle-edition">IX</span></header>
     <div className="oracle-chamber">
       <div className="oracle-mechanism" aria-hidden="true">
@@ -27,7 +26,7 @@ export const ExpeditionOracle = memo(function ExpeditionOracle({ state }: { stat
         <span className="oracle-core"><Compass size={44} strokeWidth={1}/></span>
         <i className="oracle-mote oracle-mote-a"/><i className="oracle-mote oracle-mote-b"/><i className="oracle-mote oracle-mote-c"/>
       </div>
-      <div className="oracle-inscription" key={`${clue.id}:${selection.reading}`}>
+      <div className="oracle-inscription" key={selection.reading}>
         <span className="oracle-eyebrow">{clue.title}</span>
         <p role="status" aria-live="polite" aria-atomic="true">{clue.text}</p>
       </div>
