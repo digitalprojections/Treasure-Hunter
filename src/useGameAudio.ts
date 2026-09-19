@@ -16,6 +16,7 @@ function readVolumes() {
 
 export function useGameAudio(scene: MusicScene, islandNumber = 1) {
   const backgroundScene = scene === 'victory' ? 'play' : scene;
+  const [startingMusicRoll] = useState(Math.random);
   const [volumes, setVolumes] = useState(readVolumes);
   const [musicStatus, setMusicStatus] = useState('Click to enable music');
   const music = useRef<MusicPlayer | null>(null);
@@ -50,9 +51,9 @@ export function useGameAudio(scene: MusicScene, islandNumber = 1) {
   useEffect(() => {
     const loops = backgroundScene === 'play' ? catalog.loops.exploration : [];
     const tracks = loops.length ? loops : catalog.music[backgroundScene];
-    music.current?.setTracks(backgroundScene === 'play' ? musicTracksForIsland(tracks, islandNumber) : tracks, backgroundScene === 'play');
+    music.current?.setTracks(backgroundScene === 'play' ? musicTracksForIsland(tracks, islandNumber, startingMusicRoll) : tracks, backgroundScene === 'play');
     if (unlocked.current && !document.hidden) void music.current?.play();
-  }, [backgroundScene, islandNumber]);
+  }, [backgroundScene, islandNumber, startingMusicRoll]);
   useEffect(() => {
     const active = effects.current;
     const silence = () => { if (document.hidden) { for (const audio of active) audio.pause(); active.clear(); synth.current?.stop(); } };

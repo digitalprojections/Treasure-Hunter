@@ -284,3 +284,102 @@ body,
   .tile-reveal-spark { display: none; }
   .tile-reveal-ring { animation: none; opacity: .6; }
 }
+
+/* Regular exploration lifts the fog with a softer, shorter pulse. */
+.tile-reveal-regular {
+  background: radial-gradient(circle, rgb(186 230 253 / 16%), transparent 75%);
+  animation-duration: 700ms;
+}
+.tile-reveal-regular .tile-reveal-ring {
+  border-width: 1px;
+  border-color: rgb(186 230 253 / 70%);
+  box-shadow: 0 0 6px rgb(125 211 252 / 35%);
+  animation-duration: 650ms;
+}
+
+/* Ancient discovery: a tile-local engraved seal and drifting golden motes. */
+.tile-discovery {
+  z-index: 38;
+  color: #f3d69b;
+  background: radial-gradient(circle, rgb(242 191 94 / 42%), rgb(161 104 32 / 12%) 55%, transparent 75%);
+  animation-duration: 1600ms;
+}
+.tile-discovery.tile-reveal-gem {
+  color: #b9ebd8;
+  background: radial-gradient(circle, rgb(104 201 175 / 35%), rgb(172 137 61 / 12%) 55%, transparent 75%);
+}
+.discovery-sigil {
+  position: absolute; inset: 4%; width: 92%; height: 92%;
+  stroke: currentColor; stroke-width: 1.4;
+  filter: drop-shadow(0 0 3px rgb(232 188 100 / 70%));
+  animation: discovery-sigil 1500ms ease-out both;
+}
+.discovery-emblem {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  filter: drop-shadow(0 0 5px rgb(243 214 155 / 90%));
+  animation: discovery-emblem 1450ms ease-out both;
+}
+.tile-discovery .tile-reveal-spark {
+  width: 2px; height: 2px; border-radius: 50%;
+  background: #f8e1aa; box-shadow: 0 0 5px #d8ad62;
+  animation-name: discovery-mote; animation-duration: 1250ms;
+}
+@keyframes discovery-sigil {
+  0% { transform: scale(.55) rotate(-22deg); opacity: 0; }
+  22% { opacity: .95; }
+  100% { transform: scale(1.08) rotate(12deg); opacity: 0; }
+}
+@keyframes discovery-emblem {
+  0% { opacity: 0; transform: translateY(5px) scale(.7); }
+  20%, 45% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-7px) scale(1.08); }
+}
+@keyframes discovery-mote {
+  0% { transform: translate(calc(var(--spark-x) * .3), 8px); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(var(--spark-x), calc(var(--spark-y) - 18px)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .discovery-sigil, .discovery-emblem { animation: none; opacity: .8; }
+}
+
+/* Relic discoveries remain anchored to the tile but extend clearly above the map. */
+.tile-with-relic-effect { overflow: visible; z-index: 42; }
+.tile-discovery.tile-reveal-relic {
+  inset: -60%;
+  overflow: visible;
+  color: #ffe8a6;
+  background: radial-gradient(circle, rgb(255 211 112 / 55%), rgb(207 139 37 / 22%) 42%, transparent 72%);
+  animation: relic-reveal-hold 2400ms ease-out both;
+}
+.tile-reveal-relic .discovery-sigil {
+  stroke-width: 1.8;
+  filter: drop-shadow(0 0 6px #e6bb65);
+  animation: relic-sigil 2300ms ease-out both;
+}
+.tile-reveal-relic .discovery-emblem { animation-duration: 2300ms; filter: drop-shadow(0 0 9px #ffe1a0); }
+.tile-reveal-relic .discovery-emblem svg { width: 36px; height: 36px; }
+.tile-reveal-relic .tile-reveal-spark {
+  width: 3px; height: 3px;
+  animation: relic-mote 1950ms ease-out both;
+  animation-delay: var(--spark-delay);
+}
+@keyframes relic-reveal-hold {
+  0% { opacity: 0; }
+  12%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes relic-sigil {
+  0% { transform: scale(.55) rotate(-22deg); opacity: 0; }
+  18%, 62% { opacity: 1; }
+  100% { transform: scale(1.08) rotate(16deg); opacity: 0; }
+}
+@keyframes relic-mote {
+  0% { transform: translate(calc(var(--spark-x) * .4), 12px); opacity: 0; }
+  15%, 40% { opacity: 1; }
+  100% { transform: translate(calc(var(--spark-x) * 2), calc(var(--spark-y) * 2 - 25px)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-reveal-relic .discovery-sigil { animation: none; opacity: 1; }
+  .tile-reveal-relic .tile-reveal-spark { display: none; }
+}

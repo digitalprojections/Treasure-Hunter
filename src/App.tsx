@@ -1,3 +1,5 @@
+import { discoveryRewardEffect } from './utils/rewardFeedback';
+import { revealsWithinIsland, type RevealSnapshot, type TileRevealEffect, type TileRevealKind } from './utils/tileReveal';
 import { TileRevealParticles } from './components/TileRevealParticles';
 import { appendLog, type ExpeditionLog } from './utils/expeditionLog';
 import { useGameAudio } from './useGameAudio';
@@ -42,7 +44,6 @@ import { canUseCharacterSkill, CharacterSkill, getSkillCostLabel, spendSkillCost
 import { classifyTerrainTiles, TerrainTileClassification } from './utils/terrainTiles';
 import { getTileAssetPresentation } from './utils/tileVisualPresentation';
 import { cn } from './utils/styles';
-import confetti from 'canvas-confetti';
 
 const GAMES_API_BASE_URL = (import.meta.env.VITE_GAMES_API_URL || '').replace(/\/$/, '');
 
@@ -141,11 +142,13 @@ export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [islandNumber, setIslandNumber] = useState(0);
-  const [tileReveals, setTileReveals] = useState<Record<string, number>>({});
+  const [tileReveals, setTileReveals] = useState<Record<string, TileRevealEffect>>({});
   const revealRevision = useRef(0);
+  const pendingRevealKind = useRef<TileRevealKind>('regular');
+  const previousRevealState = useRef<RevealSnapshot | null>(null);
   const finishTileReveal = useCallback((tileId: string, revision: number) => {
     setTileReveals(current => {
-      if (current[tileId] !== revision) return current;
+      if (current[tileId]?.revision !== revision) return current;
       const next = { ...current };
       delete next[tileId];
       return next;
@@ -153,6 +156,25 @@ export default function App() {
   }, []);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
   const { volumes, setVolumes, playSound, playMusicEvent, musicStatus } = useGameAudio(!gameState ? 'menu' : gameState.isGameOver ? 'victory' : 'play', islandNumber);
+  useEffect(() => {
+    if (!gameState) { previousRevealState.current = null; return; }
+    const snapshot = { island: islandNumber, tiles: gameState.tiles };
+    const ids = revealsWithinIsland(previousRevealState.current, snapshot);
+    previousRevealState.current = snapshot;
+    const kind = pendingRevealKind.current;
+    pendingRevealKind.current = 'regular';
+    if (!ids.length) return;
+    const revision = ++revealRevision.current;
+    setTileReveals(current => {
+      const next = { ...current };
+      for (const id of ids) {
+        const existing = current[id]?.kind;
+        if (!existing || existing === 'regular' || existing === 'special') next[id] = { revision, kind };
+      }
+      return next;
+    });
+    if (kind === 'special') playSound('reveal');
+  }, [gameState, islandNumber, playSound]);
   const [logs, setLogs] = useState<ExpeditionLog[]>([]);
   const [cacheOffer, setCacheOffer] = useState<{ x: number; y: number; kind: 'cache' | 'marker' } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -415,6 +437,7 @@ export default function App() {
       playSound('attack');
       playMusicEvent('combat');
       combatTimeoutRef.current = window.setTimeout(() => {
+        pendingRevealKind.current = 'special';
         setGameState(result.state);
         addLog(result.message, result.tone);
         setCombat(null);
@@ -427,18 +450,21 @@ export default function App() {
       if (result.message && (result.tone === 'warning' || result.tone === 'error')) playSound('warning');
       return;
     }
-    if (result.revealedTileIds?.length) {
+    pendingRevealKind.current = result.animation === 'walk' ? 'regular' : 'special';
+    if (result.animation !== 'idle' && (!result.revealedTileIds?.length || pendingRevealKind.current === 'regular')) {
+      playSound(result.animation);
+    }
+    const rewardEffect = discoveryRewardEffect(gameState, result.state, result.achievement);
+    if (rewardEffect) {
       const revision = ++revealRevision.current;
-      setTileReveals(current => ({ ...current, ...Object.fromEntries(result.revealedTileIds!.map(id => [id, revision])) }));
-      playSound('reveal');
-    } else if (result.animation !== 'idle') playSound(result.animation);
+      setTileReveals(current => ({ ...current, [rewardEffect.tileId]: { revision, kind: rewardEffect.kind } }));
+    }
     const musicCue = musicCueForOutcome(result);
     if (musicCue) playMusicEvent(musicCue);
     setPlayerFacing(current => getHorizontalFacingAfterMove(current, gameState.playerPos.x, result.state.playerPos.x));
     playPlayerAnimation(result.animation);
     setGameState(result.state);
     if (result.achievement) {
-      confetti({ particleCount: 80, spread: 80, origin: { y: 0.6 } });
       const target = gameState.tiles.find(t => t.x === x && t.y === y)!;
       awardAchievement(result.achievement, `${gameSessionIdRef.current}:${result.achievement}:${target.id}`, result.message);
       if (result.achievement === 'island_escape') setTimeout(startNewGame, 3000);
@@ -472,7 +498,7 @@ export default function App() {
     }
 
     playPlayerAnimation(skill.animation);
-    if (skill.animation !== 'idle') playSound(skill.animation);
+    if (skill.id === 'archive_clue' && skill.animation !== 'idle') playSound(skill.animation);
 
     if (skill.id === 'archive_clue') {
       addLog('Consulting the archives...', 'info');
@@ -493,6 +519,7 @@ export default function App() {
       return;
     }
 
+    pendingRevealKind.current = 'special';
     setGameState(prev => {
       if (!prev) return null;
       const { x, y } = prev.playerPos;
@@ -771,7 +798,7 @@ export default function App() {
               <TileComponent 
                 key={tile.id} 
                 tile={tile} 
-                revealRevision={tileReveals[tile.id]}
+                revealEffect={tileReveals[tile.id]}
                 onRevealComplete={finishTileReveal}
                 terrain={terrainClassifications.get(tile.id)}
                 isCurrent={gameState.playerPos.x === tile.x && gameState.playerPos.y === tile.y}
@@ -857,7 +884,7 @@ function getSkillIcon(skillId: CharacterSkill['id']) {
 }
 interface TileComponentProps {
   tile: Tile;
-  revealRevision?: number;
+  revealEffect?: TileRevealEffect;
   onRevealComplete: (tileId: string, revision: number) => void;
   terrain?: TerrainTileClassification;
   isCurrent: boolean;
@@ -897,7 +924,7 @@ function getPlayerAnimationMotion(animation: CharacterAnimationState) {
   }
 }
 
-const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, revealRevision, onRevealComplete, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, combat, onClick }) => {
+const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, revealEffect, onRevealComplete, isCurrent, idleElapsedMs, playerAnimation, playerFacing, spriteClockMs, combat, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const getTileColor = (type: TileType) => {
     switch (type) {
@@ -953,13 +980,14 @@ const TileComponent: React.FC<TileComponentProps> = ({ tile, terrain, revealRevi
       onMouseLeave={() => setIsHovered(false)}
       whileHover={tile.discovered ? { scale: 0.98, backgroundColor: 'rgba(255,255,255,0.05)' } : {}}
       className={cn(
-        "relative cursor-pointer aspect-square overflow-hidden transition-all duration-700 group",
+        "relative cursor-pointer aspect-square transition-all duration-700 group",
+        revealEffect?.kind === 'relic' ? "tile-with-relic-effect" : "overflow-hidden",
         !tile.discovered && "bg-slate-800"
       )}
     >
-      {revealRevision !== undefined && (
-        <React.Fragment key={revealRevision}>
-          <TileRevealParticles onComplete={() => onRevealComplete(tile.id, revealRevision)} />
+      {revealEffect && (
+        <React.Fragment key={revealEffect.revision}>
+          <TileRevealParticles kind={revealEffect.kind} onComplete={() => onRevealComplete(tile.id, revealEffect.revision)} />
         </React.Fragment>
       )}
       <AnimatePresence>

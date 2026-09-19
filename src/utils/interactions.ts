@@ -1,3 +1,4 @@
+import { newlyRevealedTiles } from './tileReveal';
 import { EntityType, TileType, type GameState, type Resources, type Tile, type TileVisualId } from '../types';
 import { REQUIRED_RELIC_COUNT } from './mapGenerator';
 import type { CharacterAnimationState } from './spritebox';
@@ -55,7 +56,7 @@ export function moveHero(state: GameState, x: number, y: number, random = Math.r
   const isTrappedCache = activeEntity && target.entity === EntityType.TRAP;
   if ((isTrappedCache || (!activeEntity && target.visual?.id === 'random' && !target.visualConsumed)) && !target.discovered) {
     return { state: { ...state, tiles: state.tiles.map(t => t.id === target.id ? { ...t, discovered: true } : t) },
-      message: `Encounter discovered. ${describeInteraction(target)}. Click again to choose.`, tone: 'info', animation: 'scout' };
+      message: `Encounter discovered. ${describeInteraction(target)}. Click again to choose.`, tone: 'info', animation: 'scout', revealedTileIds: [target.id] };
   }
   const rule = !activeEntity && !target.visualConsumed && target.visual ? objectRules[target.visual.id] : undefined;
   const requiredStamina = isTrappedCache ? TRAPPED_CACHE.maxStamina : 1 + (rule?.stamina ?? 0);
@@ -128,11 +129,8 @@ export function moveHero(state: GameState, x: number, y: number, random = Math.r
   }
   const radius = rule?.reveal ?? 1;
   for (const t of next.tiles) if (Math.abs(t.x - next.playerPos.x) <= radius && Math.abs(t.y - next.playerPos.y) <= radius) t.discovered = true;
-  if (rule?.action === 'Observe' && rule.reveal) {
-    const known = new Set(state.tiles.filter(t => t.discovered).map(t => t.id));
-    const revealed = next.tiles.filter(t => t.discovered && !known.has(t.id)).map(t => t.id);
-    if (revealed.length) result.revealedTileIds = revealed;
-  }
+  const revealed = newlyRevealedTiles(state.tiles, next.tiles);
+  if (revealed.length) result.revealedTileIds = revealed;
   if (result.achievement) result.tone = 'success';
   return result;
 }

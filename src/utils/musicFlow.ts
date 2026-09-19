@@ -9,8 +9,10 @@ export function musicCueForOutcome(result: { animation: string; achievement?: st
 }
 
 // Each island owns one track, including full-track fallback when section clips are absent.
-export function musicTracksForIsland(tracks: readonly string[], islandNumber: number): string[] {
+export function musicTracksForIsland(tracks: readonly string[], islandNumber: number, startingRoll = 0): string[] {
   if (!tracks.length) return [];
   const index = Number.isFinite(islandNumber) ? Math.max(0, Math.floor(islandNumber) - 1) : 0;
-  return [tracks[index % tracks.length]];
+  const roll = Number.isFinite(startingRoll) ? Math.max(0, Math.min(1, startingRoll)) : 0;
+  const offset = Math.min(tracks.length - 1, Math.floor(roll * tracks.length));
+  return [tracks[(offset + index) % tracks.length]];
 }

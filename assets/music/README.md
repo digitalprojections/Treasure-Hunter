@@ -1,8 +1,8 @@
 # Treasure Hunter music
 
 Place MP3, OGG, WAV, M4A, or WebM original tracks directly in `menu/`, `play/`,
-`victory/`, or `defeat/`. Filenames are unrestricted. Exploration selects one track per island in filename
-order, wrapping after the last track. That track repeats until the next island.
+`victory/`, or `defeat/`. Filenames are unrestricted. Exploration randomly chooses its first track when the game starts, then selects
+the next track in filename order for each new island, wrapping after the last. That track repeats until the next island.
 Other scene playlists cycle in filename order. Empty scenes are silent. Playback starts after player
 interaction and pauses while the tab is hidden.
 
@@ -13,7 +13,7 @@ Refresh development after adding files; production needs a rebuild.
 
 ## Section-based musical flow
 
-- `loops/exploration/`: one section is selected when a new island is generated
+- `loops/exploration/`: the starting section is random; a new island selects the next section
   and repeats throughout that island. Combat, discoveries, relics, rest, setbacks
   and victory cues never change or restart the background track. Reaching the next
   island (or generating a new map) selects the next track in filename order.

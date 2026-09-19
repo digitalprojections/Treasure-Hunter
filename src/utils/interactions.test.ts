@@ -184,10 +184,22 @@ test('animal reveal feedback is absent for rejected moves or an already revealed
   initial.stamina = 20;
   assert.equal(moveHero(initial, 3, 0).revealedTileIds, undefined);
 });
-test('ordinary movement, fish and survey props do not trigger animal reveal feedback', () => {
+test('ordinary movement, fish and survey props all report newly revealed terrain', () => {
   for (const id of [undefined, 'fish', 'roadSign'] as const) {
     const initial = state(id ? { visual: visual(id) } : {});
     initial.tiles.push(tile(2, { discovered: false }));
-    assert.equal(moveHero(initial, 1, 0).revealedTileIds, undefined);
+    assert.deepEqual(moveHero(initial, 1, 0).revealedTileIds, ['2-0']);
   }
+});
+
+test('ordinary movement and survey props both report their newly revealed tiles', () => {
+  for (const id of [undefined, 'roadSign', 'quest'] as const) {
+    const initial = state(id ? { visual: visual(id) } : {});
+    initial.tiles.push(tile(2, { discovered: false }), tile(3, { discovered: false }));
+    assert.deepEqual(moveHero(initial, 1, 0).revealedTileIds, id ? ['2-0', '3-0'] : ['2-0']);
+  }
+});
+test('revealing an encounter before entry reports its tile for special effects', () => {
+  const initial = state({ entity: EntityType.TRAP, discovered: false });
+  assert.deepEqual(moveHero(initial, 1, 0).revealedTileIds, ['1-0']);
 });

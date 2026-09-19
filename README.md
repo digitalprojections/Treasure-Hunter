@@ -73,3 +73,8 @@ The hero rests between idle animations, playing one cycle after a random 4–10 
 Trapped caches randomly grant 1–3 gems and cost 2–5 stamina total, including entry. Both amounts roll independently on acceptance. Five stamina is required to cover the maximum cost; only the rolled cost is spent. The offer is shown before accepting; leaving costs nothing. Recovery is one-time. Ward reveals caches without collecting them.
 
 Strange markers offer equal chances of gaining 20 gold or losing up to 20 gold, for 1 stamina total. The choice is shown before accepting, and each marker resolves only once. Gold never becomes negative.
+
+Exploration fades newly discovered tiles in with a soft pulse. Special reveals
+use teal and gold sparks, while gems, relics and treasure use a localized ancient
+seal and floating emblem. All effects respect reduced motion and leave the map
+interactive. The starting music loop is random and stays fixed until a new island.

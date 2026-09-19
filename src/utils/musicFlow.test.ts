@@ -27,3 +27,13 @@ test('empty and single-track catalogs, initial island and invalid indices are sa
     assert.deepEqual(musicTracksForIsland(['a', 'b'], island), ['a']);
   }
 });
+
+test('starting roll chooses any loop and remains fixed until a new island', () => {
+  const tracks = ['a', 'b', 'c'];
+  for (const [roll, track] of [[0, 'a'], [0.5, 'b'], [0.999, 'c']] as const) {
+    assert.deepEqual(musicTracksForIsland(tracks, 1, roll), [track]);
+    assert.deepEqual(musicTracksForIsland(tracks, 1, roll), [track]);
+  }
+  assert.deepEqual(musicTracksForIsland(tracks, 2, 0.5), ['c']);
+  assert.deepEqual(musicTracksForIsland(tracks, 3, 0.5), ['a']);
+});
