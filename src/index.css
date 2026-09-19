@@ -497,6 +497,9 @@ body,
   .console-actions { padding-left: 0; }
 }
 
-@media (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
-  .map-area { scroll-behavior: smooth; }
+
+@media (max-width: 599px) {
+  .console-actions { display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 6px; }
+  .console-actions > div { display: contents; }
+  .console-actions > button, .console-actions > div button { width: 100%; min-width: 0; padding-inline: 5px; }
 }

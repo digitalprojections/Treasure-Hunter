@@ -146,14 +146,34 @@ export default function App() {
   const [tileReveals, setTileReveals] = useState<Record<string, TileRevealEffect>>({});
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const mapViewport = useRef<HTMLElement | null>(null);
+  const cameraFrame = useRef<number | null>(null);
+  const stopCamera = useCallback(() => {
+    if (cameraFrame.current !== null) cancelAnimationFrame(cameraFrame.current);
+    cameraFrame.current = null;
+  }, []);
+  useEffect(() => stopCamera, [stopCamera]);
   const centerHero = useCallback(() => {
     const viewport = mapViewport.current;
     const hero = viewport?.querySelector<HTMLElement>('.tile-current-hero');
     if (!viewport || !hero || window.innerWidth >= 1024) return;
     const bounds = viewport.getBoundingClientRect(), target = hero.getBoundingClientRect();
-    viewport.scrollTo({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', left: viewport.scrollLeft + target.left - bounds.left - (viewport.clientWidth - target.width) / 2,
-      top: viewport.scrollTop + target.top - bounds.top - (viewport.clientHeight - target.height) / 2 });
-  }, []);
+    stopCamera();
+    const startX = viewport.scrollLeft, startY = viewport.scrollTop;
+    const endX = Math.max(0, Math.min(viewport.scrollWidth - viewport.clientWidth, startX + target.left - bounds.left - (viewport.clientWidth - target.width) / 2));
+    const endY = Math.max(0, Math.min(viewport.scrollHeight - viewport.clientHeight, startY + target.top - bounds.top - (viewport.clientHeight - target.height) / 2));
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      viewport.scrollTo({ left: endX, top: endY, behavior: 'instant' });
+      return;
+    }
+    const started = performance.now();
+    const glide = (now: number) => {
+      const progress = Math.min(1, (now - started) / 1000);
+      const eased = progress * progress * (3 - 2 * progress);
+      viewport.scrollTo({ left: startX + (endX - startX) * eased, top: startY + (endY - startY) * eased, behavior: 'instant' });
+      cameraFrame.current = progress < 1 ? requestAnimationFrame(glide) : null;
+    };
+    cameraFrame.current = requestAnimationFrame(glide);
+  }, [stopCamera]);
   useEffect(() => {
     const frame = requestAnimationFrame(centerHero);
     window.addEventListener('resize', centerHero);
@@ -820,7 +840,7 @@ export default function App() {
         </aside>
 
         {/* Map Visualization */}
-        <section ref={mapViewport} aria-label="Island map" tabIndex={0} className="map-area min-h-0 p-2 sm:p-3 lg:p-6 bg-slate-950 flex flex-col items-center justify-center relative shadow-[inset_0_0_100px_rgba(0,0,0,0.4)] overflow-hidden">
+        <section ref={mapViewport} onPointerDown={stopCamera} onWheel={stopCamera} aria-label="Island map" tabIndex={0} className="map-area min-h-0 p-2 sm:p-3 lg:p-6 bg-slate-950 flex flex-col items-center justify-center relative shadow-[inset_0_0_100px_rgba(0,0,0,0.4)] overflow-hidden">
           <div className="hidden sm:block absolute top-3 lg:top-4 right-3 lg:right-8 bg-slate-900 px-3 py-1 rounded text-[10px] font-mono border border-slate-800 text-slate-500 uppercase tracking-widest shadow-lg">
             Region ID: #49F-22B
           </div>
