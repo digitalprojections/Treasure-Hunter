@@ -1,0 +1,43 @@
+/* One SVG per effect; only transform/opacity animate, with no blur surfaces. */
+.tile-reveal {
+  position:absolute;inset:0;width:100%;height:100%;z-index:35;pointer-events:none;overflow:hidden;
+  color:#a7f3d0;background:radial-gradient(circle,rgb(167 243 208 / 38%),transparent 70%);
+  animation:tile-reveal-fade 1100ms ease-out both;
+}
+.tile-reveal-ring,.discovery-sigil,.discovery-emblem,.tile-reveal-spark {transform-box:view-box;transform-origin:50% 50%}
+.tile-reveal-ring {stroke:currentColor;stroke-width:3;animation:tile-reveal-ring 850ms ease-out both}
+.reveal-ring-halo {stroke-width:9;opacity:.16}
+.tile-reveal-spark {fill:#fde68a;stroke:#fde68a;stroke-width:1;stroke-opacity:.25;animation:svg-reveal-motes 750ms ease-out both}
+.spark-trail-1 {fill:#99f6e4;stroke:#99f6e4;animation-delay:90ms}
+.tile-reveal-regular {color:rgb(186 230 253 / 70%);background:radial-gradient(circle,rgb(186 230 253 / 16%),transparent 75%);animation-duration:700ms}
+.tile-reveal-regular .tile-reveal-ring {stroke-width:1.5;animation-duration:650ms}
+.tile-discovery {z-index:38;color:#f3d69b;background:radial-gradient(circle,rgb(242 191 94 / 42%),rgb(161 104 32 / 12%) 55%,transparent 75%);animation-duration:1600ms}
+.tile-discovery.tile-reveal-gem {color:#b9ebd8;background:radial-gradient(circle,rgb(104 201 175 / 35%),rgb(172 137 61 / 12%) 55%,transparent 75%)}
+.discovery-sigil {stroke:currentColor;stroke-width:1.4;animation:discovery-sigil 1500ms ease-out both}
+.discovery-emblem {animation:discovery-emblem 1450ms ease-out both}
+.tile-discovery .tile-reveal-spark {fill:#f8e1aa;stroke:#d8ad62;animation-name:svg-discovery-motes;animation-duration:1250ms}
+.tile-with-discovery-effect {overflow:visible;z-index:42}
+.tile-current-hero {z-index:43}
+.tile-discovery:is(.tile-reveal-relic,.tile-reveal-treasure,.tile-reveal-relic-complete) {
+  inset:-80%;width:260%;height:260%;overflow:visible;color:#ffe8a6;
+  background:radial-gradient(circle,transparent 12%,rgb(255 211 112 / 42%) 32%,rgb(207 139 37 / 18%) 48%,transparent 72%);
+  animation:reward-burst 1200ms ease-out both;
+}
+:is(.tile-reveal-relic,.tile-reveal-treasure,.tile-reveal-relic-complete) .discovery-sigil {stroke-width:1.8;animation:reward-sigil 1100ms ease-out both}
+:is(.tile-reveal-relic,.tile-reveal-treasure,.tile-reveal-relic-complete) .discovery-emblem {translate:0 -26%;animation-duration:1050ms}
+:is(.tile-reveal-relic,.tile-reveal-treasure,.tile-reveal-relic-complete) .tile-reveal-spark {animation-name:svg-reward-motes;animation-duration:950ms}
+.tile-discovery.tile-reveal-relic-complete {inset:-100%;width:300%;height:300%;color:#a7ffdf;background:radial-gradient(circle,transparent 18%,rgb(58 239 175 / 48%) 33%,rgb(255 211 112 / 22%) 49%,transparent 72%)}
+@keyframes tile-reveal-fade {0%,20%{opacity:1}100%{opacity:0}}
+@keyframes tile-reveal-ring {0%{transform:scale(.2);opacity:.9}100%{transform:scale(1.45);opacity:0}}
+@keyframes svg-reveal-motes {0%{transform:scale(.1) rotate(-12deg);opacity:0}15%{opacity:1}100%{transform:scale(1.1) rotate(8deg);opacity:0}}
+@keyframes discovery-sigil {0%{transform:scale(.55) rotate(-22deg);opacity:0}22%{opacity:.95}100%{transform:scale(1.08) rotate(12deg);opacity:0}}
+@keyframes discovery-emblem {0%{opacity:0;transform:translateY(5px) scale(.7)}20%,45%{opacity:1}100%{opacity:0;transform:translateY(-7px) scale(1.08)}}
+@keyframes svg-discovery-motes {0%{transform:translateY(8px) scale(.3);opacity:0}18%{opacity:1}100%{transform:translateY(-18px) scale(1);opacity:0}}
+@keyframes reward-burst {0%{opacity:0}12%,28%{opacity:1}100%{opacity:0}}
+@keyframes reward-sigil {0%{transform:scale(.6) rotate(-22deg);opacity:0}18%,30%{opacity:1}100%{transform:scale(1.12) rotate(16deg);opacity:0}}
+@keyframes svg-reward-motes {0%{transform:translateY(8px) scale(.25);opacity:0}15%,25%{opacity:1}100%{transform:translateY(-16px) scale(1.15);opacity:0}}
+@media(prefers-reduced-motion:reduce){
+ .tile-reveal-spark{display:none}
+ .tile-reveal .tile-reveal-ring,.tile-reveal .discovery-sigil,.tile-reveal .discovery-emblem{animation:none;opacity:.8}
+ /* Keep the root fade so animationend still releases every effect. */
+}

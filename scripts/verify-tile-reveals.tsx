@@ -70,7 +70,7 @@ button.onclick = async () => {
       const effects = [...document.querySelectorAll<HTMLElement>('.tile-reveal')];
       assert(effects.length === expected, animal + ': particle tile mismatch');
       assert(effects.every(element => getComputedStyle(element).pointerEvents === 'none'), 'Particles intercept input');
-      assert(document.querySelectorAll('.tile-reveal-spark').length === expected * (kind === 'regular' ? 0 : 8), 'Wrong animation style');
+      assert(document.querySelectorAll('.tile-reveal-spark').length === expected * (kind === 'regular' ? 0 : 2), 'Wrong animation style');
       if (kind === 'relic-complete' || kind === 'relic' || kind === 'treasure') {
         const effect = effects[0], tile = effect.parentElement!;
         assert(effect.getBoundingClientRect().width >= tile.getBoundingClientRect().width * 2.5, 'Reward effect is too small');
