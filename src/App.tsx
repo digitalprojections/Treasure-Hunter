@@ -1141,7 +1141,7 @@ export const TileComponent = React.memo(function TileComponent({ tile, terrain, 
         </motion.div>
       )}
 
-      <AnimatePresence>
+      {/* Shared layout moves the single hero; retaining exits creates duplicate heroes on rapid taps. */}
         {isCurrent && (
           <motion.div 
             layoutId="player"
@@ -1164,7 +1164,6 @@ export const TileComponent = React.memo(function TileComponent({ tile, terrain, 
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
     </motion.div>
   );
 });
