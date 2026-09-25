@@ -13,7 +13,7 @@ export const objectRules: Partial<Record<TileVisualId, ObjectRule>> = {
   goblin: fight(3, 12), wolf: fight(3, 12), skeleton: fight(4, 16), harpy: fight(4, 16), orc: fight(5, 22), troll: fight(6, 28),
   turret: fight(4, 18), cannon: fight(5, 22), fireTurret: fight(6, 26), magicTurret: fight(6, 26),
   gold: collect({ gold: 20 }), goldMine: collect({ gold: 30, stone: 4 }), wood: collect({ wood: 8 }), stone: collect({ stone: 8 }),
-  well: recover(6), village: recover(8),
+  well: recover(6), village: recover(8), camp: recover(5), oasis: recover(10),
   barricade: clear({ wood: 4 }), woodenGate: clear({ wood: 5 }), stoneGate: clear({ stone: 4 }), ironGate: clear({ stone: 5 }), magicGate: clear({ gems: 1 }),
   altar: collect({ gems: 1 }),
   roadSign: { action: 'Survey', reveal: 2 }, quest: { action: 'Survey', reveal: 3 }, random: { action: 'Investigate' },
@@ -52,6 +52,7 @@ export function moveHero(state: GameState, x: number, y: number, random = Math.r
   if (state.isGameOver || dx > 1 || dy > 1 || (dx === 0 && dy === 0)) return reject();
   const target = state.tiles.find(t => t.x === x && t.y === y);
   if (!target || target.type === TileType.DEEP_WATER) return reject('Deep water is impassable.');
+  if (target.type === TileType.HIGH_MOUNTAIN) return reject('High mountains are impassable. Find a pass or go around.');
   const activeEntity = target.entity && (!target.entityFound || target.entity === EntityType.EXIT);
   const isTrappedCache = activeEntity && target.entity === EntityType.TRAP;
   if ((isTrappedCache || (!activeEntity && target.visual?.id === 'random' && !target.visualConsumed)) && !target.discovered) {
@@ -59,7 +60,8 @@ export function moveHero(state: GameState, x: number, y: number, random = Math.r
       message: `Encounter discovered. ${describeInteraction(target)}. Click again to choose.`, tone: 'info', animation: 'scout', revealedTileIds: [target.id] };
   }
   const rule = !activeEntity && !target.visualConsumed && target.visual ? objectRules[target.visual.id] : undefined;
-  const requiredStamina = isTrappedCache ? TRAPPED_CACHE.maxStamina : 1 + (rule?.stamina ?? 0);
+  const terrainCost = target.type === TileType.MOUNTAIN ? 1 : 0;
+  const requiredStamina = isTrappedCache ? TRAPPED_CACHE.maxStamina : 1 + terrainCost + (rule?.stamina ?? 0);
   if (state.stamina < requiredStamina) return reject(`Need ${requiredStamina} stamina to cover this encounter. Conclude the day to rest.`);
   const roll = (min: number, max: number) => min + Math.min(max - min, Math.max(0, Math.floor(random() * (max - min + 1))));
   const staminaCost = isTrappedCache ? roll(TRAPPED_CACHE.minStamina, TRAPPED_CACHE.maxStamina) : requiredStamina;

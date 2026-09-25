@@ -9,6 +9,7 @@ export enum TileType {
   GRASS = 'grass',
   FOREST = 'forest',
   MOUNTAIN = 'mountain',
+  HIGH_MOUNTAIN = 'high_mountain',
   DEEP_WATER = 'deep_water'
 }
 
@@ -26,6 +27,7 @@ export type TileVisualId =
   | 'barricade'
   | 'boar'
   | 'cactus'
+  | 'camp'
   | 'cannon'
   | 'deer'
   | 'falcon'
@@ -40,6 +42,7 @@ export type TileVisualId =
   | 'magicGate'
   | 'magicTurret'
   | 'orc'
+  | 'oasis'
   | 'quest'
   | 'rabbit'
   | 'random'

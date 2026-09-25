@@ -8,6 +8,7 @@ import { Tile, TileType, EntityType, TileVisual } from '../types';
 const MAP_WIDTH = 12;
 const MAP_HEIGHT = 12;
 export const REQUIRED_RELIC_COUNT = 3;
+const seeded = (seed: number) => { let value = seed >>> 0; return () => { value = (value * 1664525 + 1013904223) >>> 0; return value / 4294967296; }; };
 
 const visualPools: Record<TileType, TileVisual[]> = {
   [TileType.WATER]: [
@@ -33,6 +34,8 @@ const visualPools: Record<TileType, TileVisual[]> = {
     { id: 'deer', label: 'Deer', tone: 'wildlife' },
     { id: 'boar', label: 'Boar', tone: 'wildlife' },
     { id: 'village', label: 'Village', tone: 'landmark' },
+    { id: 'camp', label: 'Wayfarer Camp', tone: 'landmark' },
+    { id: 'oasis', label: 'Oasis', tone: 'landmark' },
     { id: 'well', label: 'Well', tone: 'landmark' },
     { id: 'gold', label: 'Gold Cache', tone: 'resource' },
     { id: 'wood', label: 'Wood Pile', tone: 'resource' },
@@ -64,19 +67,24 @@ const visualPools: Record<TileType, TileVisual[]> = {
     { id: 'orc', label: 'Orc Camp', tone: 'threat' },
     { id: 'harpy', label: 'Harpy Roost', tone: 'threat' },
   ],
+  [TileType.HIGH_MOUNTAIN]: [
+    { id: 'stone', label: 'Stone Deposit', tone: 'resource' },
+    { id: 'altar', label: 'Mountain Shrine', tone: 'landmark' },
+  ],
 };
 
-function pickVisual(type: TileType): TileVisual | undefined {
+function pickVisual(type: TileType, random: () => number): TileVisual | undefined {
   const pool = visualPools[type];
   if (!pool.length) return undefined;
 
   const chance = type === TileType.WATER || type === TileType.DEEP_WATER ? 0.16 : 0.34;
-  if (Math.random() > chance) return undefined;
+  if (random() > chance) return undefined;
 
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pool[Math.floor(random() * pool.length)];
 }
 
-export function generateIsland(): Tile[] {
+export function generateIsland(level = 1, seed = level * 7919): Tile[] {
+  const random = seeded(seed);
   const tiles: Tile[] = [];
   const centerX = MAP_WIDTH / 2;
   const centerY = MAP_HEIGHT / 2;
@@ -88,7 +96,8 @@ export function generateIsland(): Tile[] {
       const normalizedDist = dist / maxDist;
       
       let type: TileType;
-      const rand = Math.random();
+      const rand = random();
+      const template = level % 3;
 
       // Simple island logic based on distance from center
       if (normalizedDist > 0.8 + (rand * 0.2)) {
@@ -100,7 +109,7 @@ export function generateIsland(): Tile[] {
       } else if (normalizedDist > 0.2 + (rand * 0.1)) {
         type = rand > 0.8 ? TileType.FOREST : TileType.GRASS;
       } else {
-        type = rand > 0.7 ? TileType.MOUNTAIN : TileType.GRASS;
+        type = rand > 0.62 ? (template === 2 && rand > 0.82 ? TileType.HIGH_MOUNTAIN : TileType.MOUNTAIN) : TileType.GRASS;
       }
 
       tiles.push({
@@ -118,7 +127,7 @@ export function generateIsland(): Tile[] {
   const isLanding = (tile: Tile) => tile.x === landing.x && tile.y === landing.y;
   const landTiles = tiles.filter(t => t.type !== TileType.WATER && t.type !== TileType.DEEP_WATER && !isLanding(t));
   landTiles.forEach(tile => {
-    const rand = Math.random();
+    const rand = random();
     if (rand < 0.05) {
       tile.entity = EntityType.TREASURE;
     } else if (rand < 0.10) {
@@ -131,14 +140,14 @@ export function generateIsland(): Tile[] {
   // Place one exit tile on the coast
   const coastalSand = landTiles.filter(t => t.type === TileType.SAND);
   if (coastalSand.length > 0) {
-    const exitTile = coastalSand[Math.floor(Math.random() * coastalSand.length)];
+    const exitTile = coastalSand[Math.floor(random() * coastalSand.length)];
     exitTile.entity = EntityType.EXIT;
     // Ensure it's not a treasure too
   }
 
   const relicCandidates = landTiles
     .filter(t => t.entity !== EntityType.EXIT)
-    .sort(() => Math.random() - 0.5);
+    .sort(() => random() - 0.5);
 
   for (let i = 0; i < Math.min(REQUIRED_RELIC_COUNT, relicCandidates.length); i++) {
     relicCandidates[i].entity = EntityType.RELIC;
@@ -146,7 +155,7 @@ export function generateIsland(): Tile[] {
 
   tiles.forEach(tile => {
     if (!tile.entity && !isLanding(tile)) {
-      tile.visual = pickVisual(tile.type);
+      tile.visual = pickVisual(tile.type, random);
     }
   });
 
@@ -155,7 +164,7 @@ export function generateIsland(): Tile[] {
 
 export function getStartingPosition(tiles: Tile[]): { x: number, y: number } {
   const emptyLand = tiles.filter(t =>
-    t.type !== TileType.WATER && t.type !== TileType.DEEP_WATER && !t.entity && !t.visual);
+    t.type !== TileType.WATER && t.type !== TileType.DEEP_WATER && t.type !== TileType.HIGH_MOUNTAIN && !t.entity && !t.visual);
   const sandTiles = emptyLand.filter(t => t.type === TileType.SAND);
   const candidates = sandTiles.length ? sandTiles : emptyLand;
   if (!candidates.length) throw new Error('Map has no empty land tile for the hero.');

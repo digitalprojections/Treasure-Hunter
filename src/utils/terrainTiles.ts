@@ -46,7 +46,7 @@ const directionOffsets: Record<CardinalDirection, { dx: number; dy: number }> = 
 };
 
 const directions: CardinalDirection[] = ['north', 'east', 'south', 'west'];
-const landTileTypes = new Set<TileType>([TileType.SAND, TileType.GRASS, TileType.FOREST, TileType.MOUNTAIN]);
+const landTileTypes = new Set<TileType>([TileType.SAND, TileType.GRASS, TileType.FOREST, TileType.MOUNTAIN, TileType.HIGH_MOUNTAIN]);
 
 export function getMinimumTerrainTileSetSize() {
   return MINIMUM_TERRAIN_VARIANT_KEYS.length;
