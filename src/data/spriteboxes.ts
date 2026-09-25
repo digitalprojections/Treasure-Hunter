@@ -38,6 +38,7 @@ export const tileTerrainSpriteBoxes: Record<TileType, SpriteBoxModule> = {
   [TileType.GRASS]: staticBox('terrain.plains', 'Grass', [[tileTerrainAssets[TileType.GRASS], 'terrain/plains']]),
   [TileType.FOREST]: staticBox('terrain.forest', 'Forest', [[tileTerrainAssets[TileType.FOREST], 'terrain/forest']]),
   [TileType.MOUNTAIN]: staticBox('terrain.mountain', 'Mountain', [[tileTerrainAssets[TileType.MOUNTAIN], 'terrain/mountain']]),
+  [TileType.HIGH_MOUNTAIN]: staticBox('terrain.high_mountain', 'High Mountain', [[tileTerrainAssets[TileType.HIGH_MOUNTAIN], 'terrain/mountain']]),
   [TileType.DEEP_WATER]: staticBox('terrain.deep_water', 'Deep Water', [[tileTerrainAssets[TileType.DEEP_WATER], 'terrain/shallow_water']]),
 };
 
@@ -55,6 +56,7 @@ export const visualSpriteBoxes: Record<TileVisualId, SpriteBoxModule> = {
   barricade: { ...getObjectSpriteBox('barriers/barricade'), id: 'visual.barricade', label: 'Barricade' },
   boar: staticBox('visual.boar', 'Boar', [[wildlifeAssets.boar, 'wildlife/boar']]),
   cactus: staticBox('visual.cactus', 'Cactus', [[terrainAssets.cactus, 'terrain/cactus']]),
+  camp: staticBox('visual.camp', 'Wayfarer Camp', [[structureAssets.village, 'structures/village']]),
   cannon: defenseAssets.cannon,
   deer: staticBox('visual.deer', 'Deer', [[wildlifeAssets.deer, 'wildlife/deer']]),
   falcon: staticBox('visual.falcon', 'Falcon', [[wildlifeAssets.falcon, 'wildlife/falcon']]),
@@ -69,6 +71,7 @@ export const visualSpriteBoxes: Record<TileVisualId, SpriteBoxModule> = {
   magicGate: staticBox('visual.magic_gate', 'Magic Gate', [[barrierAssets.magicGate, 'barriers/magic_gate']]),
   magicTurret: defenseAssets.magicTurret,
   orc: staticBox('visual.orc', 'Orc Camp', [[enemyAssets.orc, 'enemies/orc']]),
+  oasis: staticBox('visual.oasis', 'Oasis', [[structureAssets.well, 'structures/well']]),
   quest: staticBox('visual.quest', 'Quest Marker', [[symbolAssets.quest, 'symbols/quest']]),
   rabbit: staticBox('visual.rabbit', 'Rabbit', [[wildlifeAssets.rabbit, 'wildlife/rabbit']]),
   random: staticBox('visual.random', 'Strange Marker', [[symbolAssets.random, 'symbols/random']]),

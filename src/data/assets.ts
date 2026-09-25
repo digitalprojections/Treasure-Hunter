@@ -164,6 +164,7 @@ export const tileTerrainAssets: Record<TileType, string> = {
   [TileType.GRASS]: terrainAssets.plains,
   [TileType.FOREST]: terrainAssets.forest,
   [TileType.MOUNTAIN]: terrainAssets.mountain,
+  [TileType.HIGH_MOUNTAIN]: terrainAssets.mountain,
   [TileType.DEEP_WATER]: terrainAssets.shallowWater,
 };
 
@@ -181,6 +182,7 @@ export const visualAssetPools: Record<TileVisualId, readonly string[]> = {
   barricade: objectAssets['barriers/barricade']?.static?.assets.map(asset => asset.src) ?? [barrierAssets.barricade],
   boar: [wildlifeAssets.boar],
   cactus: [terrainAssets.cactus],
+  camp: [structureAssets.village],
   cannon: defenseAssets.cannon.assets.map(asset => asset.src),
   deer: [wildlifeAssets.deer],
   falcon: [wildlifeAssets.falcon],
@@ -195,6 +197,7 @@ export const visualAssetPools: Record<TileVisualId, readonly string[]> = {
   magicGate: [barrierAssets.magicGate],
   magicTurret: defenseAssets.magicTurret.assets.map(asset => asset.src),
   orc: [enemyAssets.orc],
+  oasis: [structureAssets.well],
   quest: [symbolAssets.quest],
   rabbit: [wildlifeAssets.rabbit],
   random: [symbolAssets.random],

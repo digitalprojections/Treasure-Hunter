@@ -147,6 +147,7 @@ const LogItem: React.FC<LogItemProps> = ({ message, type, timestamp, count }) =>
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [showTutorial, setShowTutorial] = useState(true);
   const [islandNumber, setIslandNumber] = useState(0);
   const [tileReveals, setTileReveals] = useState<Record<string, TileRevealEffect>>({});
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
@@ -276,8 +277,9 @@ export default function App() {
     setCacheOffer(null);
     playPlayerAnimation('idle');
     gameSessionIdRef.current = createSessionId();
-    setIslandNumber(number => number + 1);
-    const tiles = generateIsland();
+    const nextIsland = islandNumber + 1;
+    setIslandNumber(nextIsland);
+    const tiles = generateIsland(nextIsland, nextIsland * 7919 + gameSessionIdRef.current.length);
     const startPos = getStartingPosition(tiles);
     
     // Discover starting tile and neighbors
@@ -749,6 +751,7 @@ export default function App() {
               <LegendItem label="Grass" spriteBox={tileTerrainSpriteBoxes[TileType.GRASS]} color="bg-emerald-700" />
               <LegendItem label="Forest" spriteBox={tileTerrainSpriteBoxes[TileType.FOREST]} color="bg-emerald-950" />
               <LegendItem label="Mountain" spriteBox={tileTerrainSpriteBoxes[TileType.MOUNTAIN]} color="bg-slate-600" />
+              <LegendItem label="High Mountain" spriteBox={tileTerrainSpriteBoxes[TileType.HIGH_MOUNTAIN]} color="bg-slate-800" />
               <div className="legend-entities col-span-2 grid grid-cols-2 border-t border-slate-800 opacity-80">
                 <LegendItem label="Treasure" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.TREASURE]} />
                 <LegendItem label="Relic" color="bg-transparent" spriteBox={entitySpriteBoxes[EntityType.RELIC]} />
@@ -909,6 +912,19 @@ export default function App() {
           <button autoFocus onClick={() => setAudioSettingsOpen(false)} className="encounter-choice w-full py-2">Done</button>
         </section>
       </div>}
+      {showTutorial && gameState && <div className="encounter-overlay fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80">
+        <section role="dialog" aria-modal="true" aria-labelledby="tutorial-title" className="encounter-frame w-full max-w-lg p-6 text-slate-200">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-amber-400">Expedition field guide</p>
+          <h2 id="tutorial-title" className="mt-2 text-2xl font-bold text-amber-100">Read the island before you cross it</h2>
+          <div className="mt-4 space-y-3 text-sm text-slate-300">
+            <p><strong className="text-blue-300">Deep water</strong> and <strong className="text-slate-200">high mountains</strong> cannot be crossed. Go around them.</p>
+            <p><strong className="text-amber-200">Mountains</strong> are passable, but cost 2 stamina. Ordinary movement costs 1.</p>
+            <p><strong className="text-emerald-300">Villages, wells, camps, and oases</strong> replenish stamina when entered. Relics unlock the exit ship.</p>
+            <p className="text-slate-400">Each island follows a deliberate terrain pattern, then adds a seeded variation so routes stay readable without repeating exactly.</p>
+          </div>
+          <button autoFocus onClick={() => setShowTutorial(false)} className="encounter-choice mt-6 w-full py-3 font-bold">Begin expedition</button>
+        </section>
+      </div>}
       <footer className="hidden sm:flex shrink-0 h-8 lg:h-10 bg-slate-950 border-t border-slate-900 items-center justify-between px-4 lg:px-8 text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em]">
         <span>Treasure Hunter v{appVersion}</span>
         <span>Explore. Recover. Escape.</span>
@@ -991,6 +1007,7 @@ export const TileComponent = React.memo(function TileComponent({ tile, terrain, 
       case TileType.GRASS: return 'bg-emerald-600/30';
       case TileType.FOREST: return 'bg-emerald-900/40';
       case TileType.MOUNTAIN: return 'bg-slate-500/30';
+      case TileType.HIGH_MOUNTAIN: return 'bg-slate-800/50';
       default: return 'bg-slate-800';
     }
   };
