@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Treasure Hunter</string>
+    <string name="title_activity_main">Treasure Hunter</string>
+    <string name="package_name">com.treasurehunter.game</string>
+    <string name="custom_url_scheme">com.treasurehunter.game</string>
+</resources>
